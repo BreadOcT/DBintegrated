@@ -1,19 +1,23 @@
-import React, { useState } from 'react';
-import { User, Mail, Shield, Smartphone, Bell, Key, LogOut, Check } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { User, Mail, Shield, Smartphone, Bell, Key, LogOut, Check, Camera as CameraIcon } from 'lucide-react';
 import { Modal } from './ui/Modal';
+import { useAuth } from '../hooks/useAuth';
 
 interface ProfileProps {
   onLogout?: () => void;
 }
 
 export function Profile({ onLogout }: ProfileProps) {
+  const { user, updateProfile } = useAuth();
+
   // Modal states
   const [activeModal, setActiveModal] = useState<'none' | 'editProfile' | 'editPassword' | 'devices'>('none');
   
   // Profile data state
-  const [profileName, setProfileName] = useState('Pengguna Setia');
-  const [profileEmail, setProfileEmail] = useState('pengguna@example.com');
-  const [profilePhone, setProfilePhone] = useState('+62 812 3456 7890');
+  const [profileName, setProfileName] = useState('');
+  const [profileEmail, setProfileEmail] = useState('');
+  const [profilePhone, setProfilePhone] = useState('');
+  const [profilePhoto, setProfilePhoto] = useState('');
   
   // Feature states
   const [is2FAEnabled, setIs2FAEnabled] = useState(false);
@@ -22,17 +26,41 @@ export function Profile({ onLogout }: ProfileProps) {
   const [promoOffer, setPromoOffer] = useState(false);
 
   // Form states
-  const [editName, setEditName] = useState(profileName);
-  const [editPhone, setEditPhone] = useState(profilePhone);
+  const [editName, setEditName] = useState('');
+  const [editPhone, setEditPhone] = useState('');
+  const [editPhoto, setEditPhoto] = useState('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleSaveProfile = () => {
-    setProfileName(editName);
-    setProfilePhone(editPhone);
+  useEffect(() => {
+    if (user) {
+      setProfileName(user.name);
+      setProfileEmail(user.email);
+      setProfilePhone(user.phone || '');
+      setProfilePhoto(user.photo || '');
+      setEditName(user.name);
+      setEditPhone(user.phone || '');
+      setEditPhoto(user.photo || '');
+    }
+  }, [user]);
+
+  const handleSaveProfile = async () => {
+    await updateProfile({ name: editName, phone: editPhone, photo: editPhoto });
     setActiveModal('none');
   };
 
   const handleSavePassword = () => {
     setActiveModal('none');
+  };
+
+  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setEditPhoto(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   return (
@@ -46,8 +74,12 @@ export function Profile({ onLogout }: ProfileProps) {
 
       <div className="bg-bg-card border border-sand rounded-3xl p-6 sm:p-8 flex flex-col sm:flex-row items-center gap-6 shadow-sm">
         <div className="relative">
-          <div className="w-24 h-24 rounded-full bg-gradient-to-tr from-clay/20 to-nature-green/20 border-2 border-bg-base shadow-lg flex items-center justify-center">
-            <User className="w-10 h-10 text-clay" />
+          <div className="w-24 h-24 rounded-full bg-gradient-to-tr from-clay/20 to-nature-green/20 border-2 border-bg-base shadow-lg flex items-center justify-center overflow-hidden">
+            {profilePhoto ? (
+               <img src={profilePhoto} alt="Profile" className="w-full h-full object-cover" />
+            ) : (
+               <User className="w-10 h-10 text-clay" />
+            )}
           </div>
         </div>
         <div className="text-center sm:text-left flex-1">
@@ -155,6 +187,20 @@ export function Profile({ onLogout }: ProfileProps) {
 
       <Modal isOpen={activeModal === 'editProfile'} onClose={() => setActiveModal('none')} title="Edit Profil">
         <div className="space-y-4">
+          <div className="flex flex-col items-center mb-4">
+             <div className="relative w-24 h-24 rounded-full bg-sand/30 mb-2 overflow-hidden border-2 border-bg-base shadow-sm">
+                {editPhoto ? (
+                   <img src={editPhoto} alt="Edit Profile" className="w-full h-full object-cover" />
+                ) : (
+                   <div className="w-full h-full flex items-center justify-center"><User className="w-8 h-8 text-text-muted" /></div>
+                )}
+                <div onClick={() => fileInputRef.current?.click()} className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity cursor-pointer">
+                   <CameraIcon className="w-6 h-6 text-white" />
+                </div>
+             </div>
+             <button onClick={() => fileInputRef.current?.click()} className="text-xs font-bold text-clay hover:underline">Ubah Foto</button>
+             <input type="file" accept="image/*" ref={fileInputRef} onChange={handlePhotoUpload} className="hidden" />
+          </div>
           <div>
             <label className="block text-xs font-bold text-text-muted mb-1.5 uppercase tracking-wide">Nama Lengkap</label>
             <input 

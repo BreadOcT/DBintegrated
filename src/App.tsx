@@ -81,6 +81,14 @@ export default function App() {
     setActiveTab('dashboard');
   };
 
+  const handleDashboardNavigate = (tab: string, filters?: any) => {
+    if (tab === 'history' && filters) {
+       handleNavigateToHistory(filters);
+    } else {
+       setActiveTab(tab);
+    }
+  };
+
   if (isAuthLoading) {
     return <div className="h-screen w-screen flex items-center justify-center bg-bg-base text-clay font-bold">Memuat...</div>;
   }
@@ -103,7 +111,7 @@ export default function App() {
           className="w-full h-full"
         >
           {activeTab === "dashboard" && (
-            <Dashboard {...tState} onNavigate={setActiveTab} />
+            <Dashboard {...tState} onNavigate={handleDashboardNavigate} />
           )}
           
           {activeTab === "history" && (

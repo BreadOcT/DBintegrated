@@ -127,7 +127,7 @@ async function startServer() {
 
   app.get("/api/auth/me", authenticateToken, async (req: any, res: any) => {
     if (dbPool) {
-        const [rows]: any = await dbPool.execute('SELECT id, name, email, phone FROM users WHERE id = ?', [req.user.id]);
+        const [rows]: any = await dbPool.execute('SELECT id, name, email, phone, photo FROM users WHERE id = ?', [req.user.id]);
         if (rows.length > 0) {
             res.json(rows[0]);
         } else {
@@ -135,6 +135,96 @@ async function startServer() {
         }
     } else {
         res.json(req.user);
+    }
+  });
+
+  app.put("/api/auth/me", authenticateToken, async (req: any, res: any) => {
+    if (dbPool) {
+       try {
+         const { name, phone, photo } = req.body;
+         // Try checking if photo column exists, if not this might fail gracefully or we should ensure DB has it
+         await dbPool.execute('UPDATE users SET name = ?, phone = ?, photo = ? WHERE id = ?', [name, phone || null, photo || null, req.user.id]);
+         res.json({ message: "Profile updated successfully" });
+       } catch (error) {
+         console.error("Profile update error:", error);
+         res.status(500).json({ error: "Failed to update profile. Ensure 'photo' column exists in 'users' table." });
+       }
+    } else {
+       res.status(501).json({ error: "Database not configured." });
+    }
+  });
+
+  // Budgets Routes
+  app.get("/api/budgets", authenticateToken, async (req: any, res: any) => {
+    if (dbPool) {
+      try {
+        const { year } = req.query;
+        let query = 'SELECT * FROM monthly_budgets WHERE user_id = ?';
+        let params: any[] = [req.user.id];
+        
+        if (year) {
+          query += ' AND year = ?';
+          params.push(parseInt(year));
+        }
+        
+        const [rows] = await dbPool.execute(query, params);
+        res.json(rows);
+      } catch (error) {
+         // Create table if not exists right here as a fallback
+         try {
+            await dbPool.execute(`
+              CREATE TABLE IF NOT EXISTS monthly_budgets (
+                  user_id VARCHAR(36) NOT NULL,
+                  month INT NOT NULL,
+                  year INT NOT NULL,
+                  income_target DECIMAL(15, 2) DEFAULT 0,
+                  expense_target DECIMAL(15, 2) DEFAULT 0,
+                  PRIMARY KEY (user_id, month, year)
+              )
+            `);
+            const { year } = req.query;
+            let query = 'SELECT * FROM monthly_budgets WHERE user_id = ?';
+            let params: any[] = [req.user.id];
+            if (year) { query += ' AND year = ?'; params.push(parseInt(year)); }
+            const [rows] = await dbPool.execute(query, params);
+            res.json(rows);
+         } catch(e) {
+            console.error("Budgets Fetch Error:", e);
+            res.status(500).json({ error: "Failed to fetch budgets" });
+         }
+      }
+    } else {
+      res.json([]);
+    }
+  });
+
+  app.put("/api/budgets", authenticateToken, async (req: any, res: any) => {
+    if (dbPool) {
+      try {
+        const { month, year, income_target, expense_target } = req.body;
+        // Upsert logic
+        const [rows]: any = await dbPool.execute(
+          'SELECT * FROM monthly_budgets WHERE user_id = ? AND month = ? AND year = ?',
+          [req.user.id, month, year]
+        );
+        if (rows.length > 0) {
+           await dbPool.execute(
+             'UPDATE monthly_budgets SET income_target = ?, expense_target = ? WHERE user_id = ? AND month = ? AND year = ?',
+             [income_target, expense_target, req.user.id, month, year]
+           );
+        } else {
+           await dbPool.execute(
+             'INSERT INTO monthly_budgets (user_id, month, year, income_target, expense_target) VALUES (?, ?, ?, ?, ?)',
+             [req.user.id, month, year, income_target, expense_target]
+           );
+        }
+        res.json({ message: "Budget updated" });
+      } catch (error) {
+        console.error("Budget Update Error:", error);
+        res.status(500).json({ error: "Failed to update budget" });
+      }
+    } else {
+        res.status(501).json({ error: "Database not configured." });
     }
   });
 

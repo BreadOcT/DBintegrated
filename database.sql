@@ -7,7 +7,18 @@ CREATE TABLE IF NOT EXISTS users (
     password VARCHAR(255) NOT NULL,
     name VARCHAR(255) NOT NULL,
     phone VARCHAR(50),
+    photo TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS monthly_budgets (
+    user_id VARCHAR(36) NOT NULL,
+    month INT NOT NULL,
+    year INT NOT NULL,
+    income_target DECIMAL(15, 2) DEFAULT 0,
+    expense_target DECIMAL(15, 2) DEFAULT 0,
+    PRIMARY KEY (user_id, month, year),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS transactions (
