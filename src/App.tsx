@@ -31,13 +31,13 @@ export default function App() {
 
   useEffect(() => {
     if (!isAuthLoading) {
-      if (user) {
+      if (user && authState !== 'app') {
         setAuthState('app');
-      } else if (authState === 'app') {
+      } else if (!user && authState === 'app') {
         setAuthState('landing');
       }
     }
-  }, [user, isAuthLoading]);
+  }, [user, isAuthLoading, authState]);
 
   const handleNavigateToHistory = (filters: any) => {
     setHistoryFilters(filters);
