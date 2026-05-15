@@ -1,0 +1,8 @@
+{
+  "name": "Remix: Catatan Keuangan AI Halal Bandung",
+  "description": "Aplikasi pencatatan keuangan berbasis AI untuk usaha mikro komunitas Halal Bandung, dilengkapi fitur scan struk otomatis.",
+  "requestFramePermissions": [
+    "camera"
+  ],
+  "majorCapabilities": []
+}

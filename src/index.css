@@ -1,0 +1,55 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@500;600;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: "Playfair Display", ui-serif, Georgia, serif;
+  
+  --color-nature-green: var(--tw-nature-green);
+  --color-soft-cream: var(--tw-soft-cream);
+  --color-sand: var(--tw-sand);
+  --color-clay: var(--tw-clay);
+  --color-bg-base: var(--tw-bg-base);
+  --color-bg-card: var(--tw-bg-card);
+  --color-text-main: var(--tw-text-main);
+  --color-text-muted: var(--tw-text-muted);
+}
+
+:root {
+  --tw-nature-green: #22da47;
+  --tw-soft-cream: #f3f4f6;
+  --tw-sand: #e5e7eb;
+  --tw-clay: #9333ea;
+  --tw-bg-base: #F5F3FF;
+  --tw-bg-card: #FFFFFF;
+  --tw-text-main: #111827;
+  --tw-text-muted: #6B7280;
+}
+
+.dark {
+  --tw-nature-green: #22da47;
+  --tw-soft-cream: #1F2937;
+  --tw-sand: #374151;
+  --tw-clay: #a855f7;
+  --tw-bg-base: #111827;
+  --tw-bg-card: #1F2937;
+  --tw-text-main: #F9FAFB;
+  --tw-text-muted: #9CA3AF;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: var(--color-bg-base);
+  color: var(--color-text-main);
+  -webkit-font-smoothing: antialiased;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Card utility */
+.glass-card {
+  background: var(--color-bg-card);
+  border-radius: 24px;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05); /* shadow-sm */
+  border: 1px solid var(--color-sand);
+  transition: background-color 0.3s ease, border-color 0.3s ease;
+}
