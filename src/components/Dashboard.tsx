@@ -285,7 +285,7 @@ export function Dashboard({
                         <Target className="w-5 h-5" />
                      </div>
                      <div>
-                        <h4 className="font-bold text-text-main text-sm">{t('dashboard.target_budget') || 'Target Anggaran'}</h4>
+                        <h4 className="font-bold text-text-main text-sm">{t('Target Anggaran Bulanan') || 'Target Anggaran'}</h4>
                         <div className="relative inline-flex mt-0.5">
                            <button onClick={(e) => { e.stopPropagation(); setShowMonthDropdown(!showMonthDropdown); }} className="flex items-center gap-1 text-[11px] font-bold text-text-main hover:text-clay transition-colors px-2 py-0.5 bg-sand/30 rounded-full">
                               {format(selectedDate, "LLLL yyyy", { locale: language === 'en' ? enUS : id })}
