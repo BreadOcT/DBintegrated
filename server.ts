@@ -154,6 +154,32 @@ async function startServer() {
     }
   });
 
+  app.put("/api/auth/password", authenticateToken, async (req: any, res: any) => {
+    if (dbPool) {
+       try {
+         const { oldPassword, newPassword } = req.body;
+         const [rows]: any = await dbPool.execute('SELECT password FROM users WHERE id = ?', [req.user.id]);
+         if (rows.length === 0) return res.status(404).json({ error: "User not found" });
+
+         const user = rows[0];
+         const validPassword = await bcrypt.compare(oldPassword, user.password);
+         if (!validPassword) {
+           return res.status(400).json({ error: "Pastikan password lama anda tepat" });
+         }
+
+         const hashedPassword = await bcrypt.hash(newPassword, 10);
+         await dbPool.execute('UPDATE users SET password = ? WHERE id = ?', [hashedPassword, req.user.id]);
+         
+         res.json({ message: "Password updated successfully" });
+       } catch (error) {
+         console.error("Password update error:", error);
+         res.status(500).json({ error: "Failed to update password" });
+       }
+    } else {
+       res.status(501).json({ error: "Database not configured." });
+    }
+  });
+
   // Budgets Routes
   app.get("/api/budgets", authenticateToken, async (req: any, res: any) => {
     if (dbPool) {

@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Transaction } from "../types";
-import { formatCurrency } from "../lib/utils";
+import { useSettings } from "../hooks/useSettings";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend, LineChart, Line, XAxis, YAxis, CartesianGrid, BarChart, Bar } from "recharts";
 import { format, parseISO, subDays, endOfMonth, parse } from "date-fns";
 import { motion } from "motion/react";
@@ -13,6 +13,7 @@ interface SimpleAccountingReportProps {
 }
 
 export function SimpleAccountingReport({ transactions, onNavigateToHistory }: SimpleAccountingReportProps) {
+  const { formatCurrency } = useSettings();
   const [timeFilter, setTimeFilter] = useState("Mingguan");
 
   let expenseChartData = [];

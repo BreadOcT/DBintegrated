@@ -30,6 +30,13 @@ export function Profile({ onLogout }: ProfileProps) {
   const [editPhone, setEditPhone] = useState('');
   const [editPhoto, setEditPhoto] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  const { token } = useAuth();
+  const [oldPassword, setOldPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [passwordError, setPasswordError] = useState('');
+  const [passwordSuccess, setPasswordSuccess] = useState('');
 
   useEffect(() => {
     if (user) {
@@ -48,8 +55,47 @@ export function Profile({ onLogout }: ProfileProps) {
     setActiveModal('none');
   };
 
-  const handleSavePassword = () => {
-    setActiveModal('none');
+  const handleSavePassword = async () => {
+    setPasswordError('');
+    setPasswordSuccess('');
+    
+    if (newPassword !== confirmPassword) {
+      setPasswordError('Konfirmasi kata sandi tidak cocok.');
+      return;
+    }
+    
+    if (newPassword.length < 6) {
+      setPasswordError('Kata sandi baru minimal 6 karakter.');
+      return;
+    }
+
+    try {
+      const res = await fetch('/api/auth/password', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ oldPassword, newPassword })
+      });
+      
+      const data = await res.json();
+      
+      if (!res.ok) {
+        setPasswordError(data.error || 'Gagal mengubah kata sandi');
+      } else {
+        setPasswordSuccess('Kata sandi berhasil diubah!');
+        setTimeout(() => {
+          setActiveModal('none');
+          setOldPassword('');
+          setNewPassword('');
+          setConfirmPassword('');
+          setPasswordSuccess('');
+        }, 1500);
+      }
+    } catch (e) {
+      setPasswordError('Terjadi kesalahan jaringan.');
+    }
   };
 
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -228,12 +274,16 @@ export function Profile({ onLogout }: ProfileProps) {
         </div>
       </Modal>
 
-      <Modal isOpen={activeModal === 'editPassword'} onClose={() => setActiveModal('none')} title="Ubah Kata Sandi">
+      <Modal isOpen={activeModal === 'editPassword'} onClose={() => { setActiveModal('none'); setPasswordError(''); setPasswordSuccess(''); setOldPassword(''); setNewPassword(''); setConfirmPassword(''); }} title="Ubah Kata Sandi">
         <div className="space-y-4">
+          {passwordError && <div className="p-3 bg-red-100 text-red-600 rounded-lg text-sm font-bold">{passwordError}</div>}
+          {passwordSuccess && <div className="p-3 bg-green-100 text-green-600 rounded-lg text-sm font-bold">{passwordSuccess}</div>}
           <div>
             <label className="block text-xs font-bold text-text-muted mb-1.5 uppercase tracking-wide">Kata Sandi Lama</label>
             <input 
               type="password" 
+              value={oldPassword}
+              onChange={(e) => setOldPassword(e.target.value)}
               placeholder="Masukkan kata sandi lama"
               className="w-full px-4 py-3 bg-bg-base border border-sand rounded-xl focus:outline-none focus:ring-2 focus:ring-clay/50 transition-shadow text-text-main"
             />
@@ -242,6 +292,8 @@ export function Profile({ onLogout }: ProfileProps) {
             <label className="block text-xs font-bold text-text-muted mb-1.5 uppercase tracking-wide">Kata Sandi Baru</label>
             <input 
               type="password" 
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
               placeholder="Masukkan kata sandi baru"
               className="w-full px-4 py-3 bg-bg-base border border-sand rounded-xl focus:outline-none focus:ring-2 focus:ring-clay/50 transition-shadow text-text-main"
             />
@@ -250,6 +302,8 @@ export function Profile({ onLogout }: ProfileProps) {
             <label className="block text-xs font-bold text-text-muted mb-1.5 uppercase tracking-wide">Konfirmasi Kata Sandi Baru</label>
             <input 
               type="password" 
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
               placeholder="Ulangi kata sandi baru"
               className="w-full px-4 py-3 bg-bg-base border border-sand rounded-xl focus:outline-none focus:ring-2 focus:ring-clay/50 transition-shadow text-text-main"
             />

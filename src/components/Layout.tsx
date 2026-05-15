@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { cn } from "../lib/utils";
 import khbLogo from "../assets/gambar/LOGO KHB.png";
+import { useAuth } from "../hooks/useAuth";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -26,6 +27,7 @@ interface LayoutProps {
 }
 
 export function Layout({ children, activeTab, onTabChange, onLogout }: LayoutProps) {
+  const { user } = useAuth();
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [theme, setTheme] = useState<"light" | "dark">(
@@ -113,14 +115,18 @@ export function Layout({ children, activeTab, onTabChange, onLogout }: LayoutPro
                 className="flex items-center gap-3 text-left hover:opacity-80 transition-opacity"
               >
                 <div className="h-11 w-11 rounded-full flex items-center justify-center overflow-hidden bg-gradient-to-tr from-clay/20 to-nature-green/20 border border-clay/30">
-                  <User className="h-5 w-5 text-clay" />
+                  {user?.photo ? (
+                    <img src={user.photo} alt="Profile" className="w-full h-full object-cover" />
+                  ) : (
+                    <User className="h-5 w-5 text-clay" />
+                  )}
                 </div>
                 <div className="hidden sm:flex flex-col justify-center">
                   <span className="text-[11px] text-text-muted font-bold tracking-wide uppercase mb-0.5">
                     Selamat datang,
                   </span>
-                  <span className="text-sm font-extrabold text-text-main leading-tight flex items-center gap-1.5">
-                    Pengguna Setia
+                  <span className="text-sm font-extrabold text-text-main leading-tight flex items-center gap-1.5 line-clamp-1 max-w-[120px]">
+                    {user?.name || "Pengguna"}
                   </span>
                 </div>
                 <ChevronDown className="h-4 w-4 text-text-muted hidden sm:block" />
@@ -135,8 +141,8 @@ export function Layout({ children, activeTab, onTabChange, onLogout }: LayoutPro
                   ></div>
                   <div className="absolute top-14 left-0 sm:left-auto sm:right-0 mt-2 w-56 bg-bg-card rounded-2xl shadow-xl border border-sand z-50 overflow-hidden">
                     <div className="p-4 border-b border-sand bg-bg-base/50">
-                      <p className="text-sm font-bold text-text-main">Pengguna Setia</p>
-                      <p className="text-xs text-text-muted mt-0.5 truncate">pengguna@example.com</p>
+                      <p className="text-sm font-bold text-text-main line-clamp-1">{user?.name || "Pengguna"}</p>
+                      <p className="text-xs text-text-muted mt-0.5 truncate">{user?.email || "pengguna@example.com"}</p>
                     </div>
                     <div className="p-2 space-y-1">
                       <button 

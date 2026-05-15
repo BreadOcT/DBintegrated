@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useTransactions } from "../hooks/useTransactions";
-import { formatCurrency } from "../lib/utils";
 import { format, parseISO, isThisMonth, isThisWeek, addMonths, subMonths, getMonth, getYear } from "date-fns";
-import { id } from "date-fns/locale";
+import { id, enUS } from "date-fns/locale";
 import { motion, AnimatePresence } from "motion/react";
 import { 
   PieChart, Plus, ArrowUpRight, ArrowDownLeft, FileText, PlusCircle, Camera, Search,
@@ -10,6 +9,7 @@ import {
   Gamepad, Target, Edit2, X, ChevronLeft, ChevronRight, ChevronDown
 } from "lucide-react";
 import { useAuth } from "../hooks/useAuth";
+import { useSettings } from "../hooks/useSettings";
 
 type DashboardProps = ReturnType<typeof useTransactions> & {
   onNavigate?: (tab: string, filters?: any) => void;
@@ -36,7 +36,8 @@ export function Dashboard({
   totalProfit,
   onNavigate,
 }: DashboardProps) {
-  const { token } = useAuth();
+  const { token, user } = useAuth();
+  const { formatCurrency, t, language } = useSettings();
   
   // Budget & Month state
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -284,10 +285,10 @@ export function Dashboard({
                         <Target className="w-5 h-5" />
                      </div>
                      <div>
-                        <h4 className="font-bold text-text-main text-sm">Target Anggaran</h4>
+                        <h4 className="font-bold text-text-main text-sm">{t('dashboard.target_budget') || 'Target Anggaran'}</h4>
                         <div className="relative inline-flex mt-0.5">
                            <button onClick={(e) => { e.stopPropagation(); setShowMonthDropdown(!showMonthDropdown); }} className="flex items-center gap-1 text-[11px] font-bold text-text-main hover:text-clay transition-colors px-2 py-0.5 bg-sand/30 rounded-full">
-                              {format(selectedDate, "LLLL yyyy", { locale: id })}
+                              {format(selectedDate, "LLLL yyyy", { locale: language === 'en' ? enUS : id })}
                               <ChevronDown className="w-3 h-3" />
                            </button>
                            {showMonthDropdown && (
@@ -298,7 +299,7 @@ export function Dashboard({
                                        setSelectedDate(new Date(selectedYear, i, 1));
                                        setShowMonthDropdown(false);
                                     }}>
-                                       {format(new Date(selectedYear, i, 1), "LLLL yyyy", { locale: id })}
+                                       {format(new Date(selectedYear, i, 1), "LLLL yyyy", { locale: language === 'en' ? enUS : id })}
                                     </div>
                                  ))}
                               </div>
@@ -496,7 +497,7 @@ export function Dashboard({
               <div className="max-w-md mx-auto">
                 <div className="w-12 h-1.5 bg-sand rounded-full mx-auto mb-6" />
                 <div className="flex justify-between items-center mb-6">
-                  <h3 className="text-xl font-extrabold text-text-main">Detail Transaksi {format(selectedDate, "LLLL yyyy", { locale: id })}</h3>
+                  <h3 className="text-xl font-extrabold text-text-main">Detail Transaksi {format(selectedDate, "LLLL yyyy", { locale: language === 'en' ? enUS : id })}</h3>
                   <button onClick={() => setShowBudgetDetails(false)} className="p-2 bg-sand/50 rounded-full text-text-muted hover:text-text-main transition-colors">
                     <X className="w-5 h-5" />
                   </button>

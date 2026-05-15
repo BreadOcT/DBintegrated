@@ -1,15 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { Settings as SettingsIcon, Moon, Sun, DollarSign, Globe, Download, Trash2, Shield, Info, Smartphone, ChevronRight } from 'lucide-react';
 import { Modal } from './ui/Modal';
+import { useSettings } from '../hooks/useSettings';
 
 export function Settings() {
+  const { currency, setCurrency, language, setLanguage, t } = useSettings();
   const [theme, setTheme] = useState<"light" | "dark">(
     () => (localStorage.getItem("theme") as "light" | "dark") || "light",
   );
 
   const [activeModal, setActiveModal] = useState<'none' | 'currency' | 'language' | 'delete' | 'export'>('none');
-  const [currency, setCurrency] = useState('Rupiah (IDR)');
-  const [language, setLanguage] = useState('Bahasa Indonesia');
   const [toastMsg, setToastMsg] = useState('');
 
   useEffect(() => {
@@ -60,7 +60,7 @@ export function Settings() {
           <SettingsIcon className="w-8 h-8" />
         </div>
         <div>
-          <h2 className="text-2xl md:text-3xl font-black text-text-main tracking-tight">Pengaturan</h2>
+          <h2 className="text-2xl md:text-3xl font-black text-text-main tracking-tight">{t('settings.title')}</h2>
           <p className="text-text-muted mt-1 text-sm font-medium">Atur preferensi aplikasi Anda di sini.</p>
         </div>
       </div>
@@ -95,7 +95,7 @@ export function Settings() {
                   <DollarSign className="w-5 h-5" />
                 </div>
                 <div>
-                  <p className="font-bold text-sm text-text-main">Mata Uang</p>
+                  <p className="font-bold text-sm text-text-main">{t('settings.currency')}</p>
                   <p className="text-xs text-text-muted mt-0.5">{currency}</p>
                 </div>
               </div>
@@ -108,8 +108,8 @@ export function Settings() {
                   <Globe className="w-5 h-5" />
                 </div>
                 <div>
-                  <p className="font-bold text-sm text-text-main">Basa & Regional</p>
-                  <p className="text-xs text-text-muted mt-0.5">{language}</p>
+                  <p className="font-bold text-sm text-text-main">{t('settings.language')}</p>
+                  <p className="text-xs text-text-muted mt-0.5">{language === 'id' ? '🇮🇩 Bahasa Indonesia' : '🇺🇸 English'}</p>
                 </div>
               </div>
               <ChevronRight className="w-5 h-5 text-text-muted group-hover:text-text-main transition-colors" />
@@ -182,13 +182,14 @@ export function Settings() {
 
       <Modal isOpen={activeModal === 'currency'} onClose={() => setActiveModal('none')} title="Pilih Mata Uang">
         <div className="space-y-2">
-          {['Rupiah (IDR)', 'US Dollar (USD)', 'Euro (EUR)'].map((curr) => (
+          {['IDR', 'USD', 'EUR'].map((curr) => (
             <button 
               key={curr}
-              onClick={() => { setCurrency(curr); setActiveModal('none'); }}
-              className={`w-full text-left px-4 py-3 rounded-xl text-sm font-bold transition-colors ${currency === curr ? 'bg-clay/10 text-clay border border-clay/20' : 'bg-bg-base text-text-main hover:bg-sand/50'}`}
+              onClick={() => { setCurrency(curr as 'IDR' | 'USD' | 'EUR'); setActiveModal('none'); }}
+              className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-sm font-bold transition-colors ${currency === curr ? 'bg-clay/10 text-clay border border-clay/20' : 'bg-bg-base text-text-main hover:bg-sand/50'}`}
             >
-              {curr}
+              <span>{curr === 'IDR' ? 'Rupiah (IDR)' : curr === 'USD' ? 'US Dollar (USD)' : 'Euro (EUR)'}</span>
+              {currency === curr && <span className="text-clay">✓</span>}
             </button>
           ))}
         </div>
@@ -196,13 +197,14 @@ export function Settings() {
 
       <Modal isOpen={activeModal === 'language'} onClose={() => setActiveModal('none')} title="Basa & Regional">
         <div className="space-y-2">
-          {['Bahasa Indonesia', 'English', 'Basa Sunda'].map((lang) => (
+          {['id', 'en'].map((lang) => (
             <button 
               key={lang}
-              onClick={() => { setLanguage(lang); setActiveModal('none'); }}
-              className={`w-full text-left px-4 py-3 rounded-xl text-sm font-bold transition-colors ${language === lang ? 'bg-clay/10 text-clay border border-clay/20' : 'bg-bg-base text-text-main hover:bg-sand/50'}`}
+              onClick={() => { setLanguage(lang as 'id' | 'en'); setActiveModal('none'); }}
+              className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-sm font-bold transition-colors ${language === lang ? 'bg-clay/10 text-clay border border-clay/20' : 'bg-bg-base text-text-main hover:bg-sand/50'}`}
             >
-              {lang}
+              <span>{lang === 'id' ? '🇮🇩 Bahasa Indonesia' : '🇺🇸 English'}</span>
+              {language === lang && <span className="text-clay">✓</span>}
             </button>
           ))}
         </div>

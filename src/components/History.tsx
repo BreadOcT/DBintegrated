@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { format, parseISO } from "date-fns";
 import { Transaction } from "../types";
-import { formatCurrency } from "../lib/utils";
+import { useSettings } from "../hooks/useSettings";
 import { 
   Calendar, Filter, Trash2, Edit, Download, AlertTriangle, X, Plus, Minus,
   Home, Briefcase, ShoppingBag, TrendingUp, Bus, Package, Users, Tag, PlusCircle
@@ -37,6 +37,7 @@ export const getCategoryStyle = (category: string, type: 'income' | 'expense') =
 };
 
 export function History({ transactions, onDelete, onEdit, initialFilters }: HistoryProps) {
+  const { formatCurrency } = useSettings();
   const [filterType, setFilterType] = useState<"all" | "income" | "expense">(initialFilters?.type || "all");
   const [filterCategory, setFilterCategory] = useState<string>("all");
   const [startDate, setStartDate] = useState<string>(initialFilters?.startDate || "");
