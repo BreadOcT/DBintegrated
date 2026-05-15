@@ -1,6 +1,7 @@
 import { motion } from 'motion/react';
 import React, { useState } from 'react';
 import { Eye, EyeOff, LayoutDashboard, LineChart, Receipt, ArrowLeft, ArrowRight } from 'lucide-react';
+import { useAuth } from '../hooks/useAuth';
 import khbLogo from '../assets/gambar/LOGO KHB.png';
 
 interface LoginProps {
@@ -9,13 +10,36 @@ interface LoginProps {
 
 export function Login({ onNavigate }: LoginProps) {
   const [showPassword, setShowPassword] = useState(false);
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState('demo@example.com');
+  const [password, setPassword] = useState('demo');
+  const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const { login } = useAuth();
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    // In a real app, perform validation and authentication here
-    onNavigate('app');
+    setIsLoading(true);
+    setError('');
+
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
+      });
+      const data = await res.json();
+      
+      if (!res.ok) {
+        setError(data.error || 'Login failed');
+      } else {
+        login(data.token, data.user);
+        onNavigate('app');
+      }
+    } catch (err) {
+      setError('Network error');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -64,7 +88,7 @@ export function Login({ onNavigate }: LoginProps) {
           transition={{ duration: 0.5 }}
           className="flex-1 flex flex-col justify-center"
         >
-          <div className="mb-10">
+            <div className="mb-10">
             <motion.div 
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
@@ -89,6 +113,7 @@ export function Login({ onNavigate }: LoginProps) {
             >
               Masukkan email dan kata sandi Anda untuk mengakses akun Anda.
             </motion.p>
+            {error && <div className="mt-4 p-3 bg-red-100 text-red-600 rounded-lg text-sm font-bold">{error}</div>}
           </div>
 
           <motion.form 

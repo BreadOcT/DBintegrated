@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { Layout } from "./components/Layout";
 import { Dashboard } from "./components/Dashboard";
@@ -8,6 +8,7 @@ import { TransactionForm } from "./components/TransactionForm";
 import { SimpleAccountingReport } from "./components/Report";
 import { Notifications } from "./components/Notifications";
 import { useTransactions } from "./hooks/useTransactions";
+import { useAuth } from "./hooks/useAuth";
 import { Transaction } from "./types";
 import { Toast } from "./components/ui/Toast";
 import { Landing } from "./components/Landing";
@@ -17,6 +18,7 @@ import { Profile } from "./components/Profile";
 import { Settings } from "./components/Settings";
 
 export default function App() {
+  const { user, isLoading: isAuthLoading, logout } = useAuth();
   const [authState, setAuthState] = useState<'landing' | 'login' | 'register' | 'app'>('landing');
   const [activeTab, setActiveTab] = useState("dashboard");
   const tState = useTransactions();
@@ -26,6 +28,16 @@ export default function App() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState("");
   const [historyFilters, setHistoryFilters] = useState<{ type?: 'all' | 'income' | 'expense', startDate?: string, endDate?: string } | null>(null);
+
+  useEffect(() => {
+    if (!isAuthLoading) {
+      if (user) {
+        setAuthState('app');
+      } else if (authState === 'app') {
+        setAuthState('landing');
+      }
+    }
+  }, [user, isAuthLoading]);
 
   const handleNavigateToHistory = (filters: any) => {
     setHistoryFilters(filters);
@@ -64,13 +76,20 @@ export default function App() {
   };
 
   const handleLogout = () => {
+    logout();
     setAuthState('landing');
     setActiveTab('dashboard');
   };
 
-  if (authState === 'landing') return <Landing onNavigate={setAuthState} />;
-  if (authState === 'login') return <Login onNavigate={setAuthState} />;
-  if (authState === 'register') return <Register onNavigate={setAuthState} />;
+  if (isAuthLoading) {
+    return <div className="h-screen w-screen flex items-center justify-center bg-bg-base text-clay font-bold">Memuat...</div>;
+  }
+
+  if (authState === 'landing' || !user) {
+    if (authState === 'login') return <Login onNavigate={setAuthState} />;
+    if (authState === 'register') return <Register onNavigate={setAuthState} />;
+    return <Landing onNavigate={setAuthState} />;
+  }
 
   return (
     <Layout activeTab={activeTab === "add_review" ? "scan" : activeTab} onTabChange={setActiveTab} onLogout={handleLogout}>

@@ -2,6 +2,7 @@ import { motion } from 'motion/react';
 import React, { useState } from 'react';
 import { Eye, EyeOff, LayoutDashboard, LineChart, Receipt, ArrowLeft, Camera, Sparkles, CheckCircle2, ShoppingCart, ArrowRight } from 'lucide-react';
 import khbLogo from '../assets/gambar/LOGO KHB.png';
+import { useAuth } from '../hooks/useAuth';
 
 interface RegisterProps {
   onNavigate: (page: 'landing' | 'login' | 'app') => void;
@@ -12,11 +13,33 @@ export function Register({ onNavigate }: RegisterProps) {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleRegister = (e: React.FormEvent) => {
+  const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Simulate auth registration and bypass straight to app
-    onNavigate('app');
+    setIsLoading(true);
+    setError('');
+
+    try {
+      const res = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, email, password })
+      });
+      const data = await res.json();
+      
+      if (!res.ok) {
+        setError(data.error || 'Registration failed');
+      } else {
+        // After successful registration, auto navigate to login or directly log them in. Let's just navigate to login
+        onNavigate('login');
+      }
+    } catch (err) {
+      setError('Network error');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -64,7 +87,7 @@ export function Register({ onNavigate }: RegisterProps) {
           transition={{ duration: 0.5 }}
           className="flex-1 flex flex-col justify-center"
         >
-          <div className="mb-10">
+            <div className="mb-10">
             <motion.div 
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
@@ -89,6 +112,7 @@ export function Register({ onNavigate }: RegisterProps) {
             >
               Mulai perjalanan cerdas Anda dalam mengelola keuangan hari ini.
             </motion.p>
+            {error && <div className="mt-4 p-3 bg-red-100 text-red-600 rounded-lg text-sm font-bold">{error}</div>}
           </div>
 
           <motion.form 
