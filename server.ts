@@ -24,6 +24,54 @@ if (process.env.DB_HOST && process.env.DB_USER && process.env.DB_NAME) {
       queueLimit: 0
     });
     console.log("MySQL connection pool created successfully!");
+    
+    // Auto-migrate tables
+    (async () => {
+      try {
+        await dbPool.execute(`
+          CREATE TABLE IF NOT EXISTS users (
+            id CHAR(36) PRIMARY KEY,
+            email VARCHAR(255) UNIQUE NOT NULL,
+            password VARCHAR(255) NOT NULL,
+            name VARCHAR(255) NOT NULL,
+            phone VARCHAR(50),
+            photo LONGTEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+          )
+        `);
+        // Add phone and photo columns if they don't exist (for existing tables)
+        try { await dbPool.execute(`ALTER TABLE users ADD COLUMN phone VARCHAR(50)`); } catch (e) {}
+        try { await dbPool.execute(`ALTER TABLE users ADD COLUMN photo LONGTEXT`); } catch (e) {}
+        
+        await dbPool.execute(`
+          CREATE TABLE IF NOT EXISTS transactions (
+            id CHAR(36) PRIMARY KEY,
+            user_id CHAR(36) NOT NULL,
+            description VARCHAR(255) NOT NULL,
+            amount DECIMAL(15, 2) NOT NULL,
+            type ENUM('income', 'expense') NOT NULL,
+            category VARCHAR(100) NOT NULL,
+            date DATE NOT NULL,
+            store_name VARCHAR(255),
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+          )
+        `);
+        
+        await dbPool.execute(`
+          CREATE TABLE IF NOT EXISTS monthly_budgets (
+              user_id CHAR(36) NOT NULL,
+              month INT NOT NULL,
+              year INT NOT NULL,
+              income_target DECIMAL(15, 2) DEFAULT 0,
+              expense_target DECIMAL(15, 2) DEFAULT 0,
+              PRIMARY KEY (user_id, month, year),
+              FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+          )
+        `);
+      } catch (error) {
+        console.error("Database migration error:", error);
+      }
+    })();
   } catch (error) {
     console.error("Failed to create MySQL pool:", error);
   }

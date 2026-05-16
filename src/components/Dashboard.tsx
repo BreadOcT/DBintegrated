@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from "motion/react";
 import { 
   PieChart, Plus, ArrowUpRight, ArrowDownLeft, FileText, PlusCircle, Camera, Search,
   Home, Briefcase, ShoppingBag, TrendingUp, Bus, Package, Users, Tag, HelpCircle, DollarSign,
-  Gamepad, Target, Edit2, X, ChevronLeft, ChevronRight, ChevronDown
+  Gamepad, Target, Edit2, X, ChevronLeft, ChevronRight, ChevronDown, Calendar
 } from "lucide-react";
 import { useAuth } from "../hooks/useAuth";
 import { useSettings } from "../hooks/useSettings";
@@ -285,25 +285,12 @@ export function Dashboard({
                         <Target className="w-5 h-5" />
                      </div>
                      <div>
-                        <h4 className="font-bold text-text-main text-sm">{t('Target Anggaran Bulanan') || 'Target Anggaran'}</h4>
+                        <h4 className="font-bold text-text-main text-sm">Target Anggaran Bulanan</h4>
                         <div className="relative inline-flex mt-0.5">
-                           <button onClick={(e) => { e.stopPropagation(); setShowMonthDropdown(!showMonthDropdown); }} className="flex items-center gap-1 text-[11px] font-bold text-text-main hover:text-clay transition-colors px-2 py-0.5 bg-sand/30 rounded-full">
+                           <button onClick={(e) => { e.stopPropagation(); setShowMonthDropdown(true); }} className="flex items-center gap-1 text-[11px] font-bold text-text-main hover:text-clay transition-colors px-2 py-0.5 bg-sand/30 rounded-full">
                               {format(selectedDate, "LLLL yyyy", { locale: language === 'en' ? enUS : id })}
                               <ChevronDown className="w-3 h-3" />
                            </button>
-                           {showMonthDropdown && (
-                              <div className="absolute top-full text-xs left-0 mt-1 bg-white border border-sand rounded-xl shadow-xl z-50 overflow-hidden w-48">
-                                 {Array.from({length: 12}).map((_, i) => (
-                                    <div key={i} className="px-3 py-2 hover:bg-sand/30 cursor-pointer" onClick={(e) => {
-                                       e.stopPropagation();
-                                       setSelectedDate(new Date(selectedYear, i, 1));
-                                       setShowMonthDropdown(false);
-                                    }}>
-                                       {format(new Date(selectedYear, i, 1), "LLLL yyyy", { locale: language === 'en' ? enUS : id })}
-                                    </div>
-                                 ))}
-                              </div>
-                           )}
                         </div>
                      </div>
                   </div>
@@ -567,6 +554,75 @@ export function Dashboard({
                    >
                      Lihat Riwayat Lengkap
                    </button>
+                </div>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {showMonthDropdown && (
+          <>
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowMonthDropdown(false)}
+              className="fixed inset-0 bg-black/60 z-[80] backdrop-blur-sm"
+            />
+            <motion.div 
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              transition={{ type: "spring", damping: 25, stiffness: 200 }}
+              className="fixed bottom-0 left-0 right-0 z-[90] bg-bg-base rounded-t-3xl border-t border-sand shadow-2xl p-6 pb-8 max-h-[85vh] flex flex-col"
+            >
+              <div className="max-w-md mx-auto w-full flex-1 flex flex-col overflow-hidden">
+                <div className="w-12 h-1.5 bg-sand rounded-full mx-auto mb-6 shrink-0" />
+                <div className="flex justify-between items-center mb-6 shrink-0">
+                  <h3 className="text-xl font-extrabold text-text-main flex items-center gap-2">
+                    <Calendar className="w-5 h-5 text-clay" /> Pilih Bulan Anggaran
+                  </h3>
+                  <button onClick={() => setShowMonthDropdown(false)} className="p-2 bg-sand/50 rounded-full text-text-muted hover:text-text-main transition-colors">
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+                
+                <div className="flex-1 overflow-y-auto space-y-2 pr-2 custom-scrollbar">
+                  {/* Select Year */}
+                  <div className="flex items-center justify-between bg-bg-card p-2 rounded-xl mb-4 border border-sand">
+                     <button onClick={() => setSelectedDate(subMonths(selectedDate, 12))} className="p-2 hover:bg-sand/50 rounded-full">
+                        <ChevronLeft className="w-5 h-5 text-text-muted" />
+                     </button>
+                     <span className="font-extrabold text-text-main text-lg">{format(selectedDate, "yyyy")}</span>
+                     <button onClick={() => setSelectedDate(addMonths(selectedDate, 12))} className="p-2 hover:bg-sand/50 rounded-full">
+                        <ChevronRight className="w-5 h-5 text-text-muted" />
+                     </button>
+                  </div>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 pb-4">
+                     {Array.from({length: 12}).map((_, i) => {
+                        const mDate = new Date(selectedYear, i, 1);
+                        const isSelected = i === selectedMonth;
+                        return (
+                           <button 
+                              key={i}
+                              onClick={() => {
+                                 setSelectedDate(mDate);
+                                 setShowMonthDropdown(false);
+                              }}
+                              className={`p-3 rounded-xl border text-sm font-bold transition-colors ${
+                                 isSelected 
+                                 ? 'bg-clay text-white shadow-md border-clay' 
+                                 : 'bg-bg-card text-text-main border-sand hover:border-clay/50'
+                              }`}
+                           >
+                              {format(mDate, "MMM", { locale: language === 'en' ? enUS : id })}
+                           </button>
+                        );
+                     })}
+                  </div>
                 </div>
               </div>
             </motion.div>

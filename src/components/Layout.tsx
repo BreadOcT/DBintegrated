@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { motion } from "motion/react";
+import { motion, AnimatePresence } from "motion/react";
 import {
   Camera,
   Home,
@@ -133,49 +133,57 @@ export function Layout({ children, activeTab, onTabChange, onLogout }: LayoutPro
               </button>
 
               {/* Dropdown Menu */}
-              {isDropdownOpen && (
-                <>
-                  <div 
-                    className="fixed inset-0 z-40 bg-transparent"
-                    onClick={() => setIsDropdownOpen(false)}
-                  ></div>
-                  <div className="absolute top-14 left-0 sm:left-auto sm:right-0 mt-2 w-56 bg-bg-card rounded-2xl shadow-xl border border-sand z-50 overflow-hidden">
-                    <div className="p-4 border-b border-sand bg-bg-base/50">
-                      <p className="text-sm font-bold text-text-main line-clamp-1">{user?.name || "Pengguna"}</p>
-                      <p className="text-xs text-text-muted mt-0.5 truncate">{user?.email || "pengguna@example.com"}</p>
-                    </div>
-                    <div className="p-2 space-y-1">
-                      <button 
-                        onClick={() => {
-                          setIsDropdownOpen(false);
-                          onTabChange("profile");
-                        }}
-                        className="w-full text-left px-3 py-2 text-sm font-bold text-text-main hover:bg-sand/30 rounded-xl transition-colors flex items-center gap-2"
-                      >
-                        <User className="h-4 w-4 text-text-muted" /> Profil Saya
-                      </button>
-                      <button 
-                        onClick={() => {
-                          setIsDropdownOpen(false);
-                          onTabChange("settings");
-                        }}
-                        className="w-full text-left px-3 py-2 text-sm font-bold text-text-main hover:bg-sand/30 rounded-xl transition-colors flex items-center gap-2"
-                      >
-                        <Settings className="h-4 w-4 text-text-muted" /> Pengaturan
-                      </button>
-                      <button 
-                        onClick={() => {
-                          setIsDropdownOpen(false);
-                          if (onLogout) onLogout();
-                        }}
-                        className="w-full text-left px-3 py-2 text-sm font-bold text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-xl transition-colors flex items-center gap-2"
-                      >
-                        <LogOut className="h-4 w-4 text-red-400" /> Keluar
-                      </button>
-                    </div>
-                  </div>
-                </>
-              )}
+              <AnimatePresence>
+                {isDropdownOpen && (
+                  <>
+                    <div 
+                      className="fixed inset-0 z-40 bg-transparent"
+                      onClick={() => setIsDropdownOpen(false)}
+                    ></div>
+                    <motion.div 
+                      initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                      transition={{ duration: 0.15 }}
+                      className="absolute top-14 left-0 sm:left-auto sm:right-0 mt-2 w-56 bg-bg-card rounded-2xl shadow-xl border border-sand z-50 overflow-hidden"
+                    >
+                      <div className="p-4 border-b border-sand bg-bg-base/50">
+                        <p className="text-sm font-bold text-text-main line-clamp-1">{user?.name || "Pengguna"}</p>
+                        <p className="text-xs text-text-muted mt-0.5 truncate">{user?.email || "pengguna@example.com"}</p>
+                      </div>
+                      <div className="p-2 space-y-1">
+                        <button 
+                          onClick={() => {
+                            setIsDropdownOpen(false);
+                            onTabChange("profile");
+                          }}
+                          className="w-full text-left px-3 py-2 text-sm font-bold text-text-main hover:bg-sand/30 rounded-xl transition-colors flex items-center gap-2"
+                        >
+                          <User className="h-4 w-4 text-text-muted" /> Profil Saya
+                        </button>
+                        <button 
+                          onClick={() => {
+                            setIsDropdownOpen(false);
+                            onTabChange("settings");
+                          }}
+                          className="w-full text-left px-3 py-2 text-sm font-bold text-text-main hover:bg-sand/30 rounded-xl transition-colors flex items-center gap-2"
+                        >
+                          <Settings className="h-4 w-4 text-text-muted" /> Pengaturan
+                        </button>
+                        <button 
+                          onClick={() => {
+                            setIsDropdownOpen(false);
+                            if (onLogout) onLogout();
+                          }}
+                          className="w-full text-left px-3 py-2 text-sm font-bold text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-xl transition-colors flex items-center gap-2"
+                        >
+                          <LogOut className="h-4 w-4 text-red-400" /> Keluar
+                        </button>
+                      </div>
+                    </motion.div>
+                  </>
+                )}
+              </AnimatePresence>
             </div>
 
             <div className="flex items-center gap-3">
