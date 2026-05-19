@@ -150,7 +150,7 @@ export function Register({ onNavigate }: RegisterProps) {
               <label className="text-xs font-bold text-text-main uppercase tracking-wider group-focus-within:text-clay transition-colors">Kata Sandi</label>
               <div className="relative">
                 <input 
-                  type="password"
+                  type={showPassword ? "text" : "password"}
                   required
                   value={password}
                   onChange={e => setPassword(e.target.value)}
@@ -161,7 +161,7 @@ export function Register({ onNavigate }: RegisterProps) {
                   className="absolute right-4 top-1/2 -translate-y-1/2 text-text-muted hover:text-clay transition-colors"
                   onClick={() => setShowPassword(!showPassword)}
                 >
-                  <EyeOff className="w-4 h-4" />
+                  {showPassword ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
                 </button>
               </div>
             </div>

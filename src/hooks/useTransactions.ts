@@ -49,9 +49,12 @@ export function useTransactions() {
         const { id } = await res.json();
         const newTransaction = { ...t, id };
         setTransactions((prev) => [newTransaction, ...prev]);
+      } else {
+        throw new Error("Failed to add transaction");
       }
     } catch (err) {
       console.error(err);
+      throw err;
     }
   };
 
@@ -70,9 +73,12 @@ export function useTransactions() {
         setTransactions((prev) =>
           prev.map((t) => (t.id === id ? { ...t, ...updated } : t))
         );
+      } else {
+        throw new Error("Failed to update transaction");
       }
     } catch (err) {
       console.error(err);
+      throw err;
     }
   };
 

@@ -5,13 +5,14 @@ import { useAuth } from '../hooks/useAuth';
 import khbLogo from '../assets/gambar/LOGO KHB.png';
 
 interface LoginProps {
-  onNavigate: (page: 'landing' | 'register' | 'app') => void;
+  onNavigate: (page: 'landing' | 'register' | 'forgot-password' | 'app') => void;
 }
 
 export function Login({ onNavigate }: LoginProps) {
   const [showPassword, setShowPassword] = useState(false);
-  const [email, setEmail] = useState('demo@example.com');
-  const [password, setPassword] = useState('demo');
+  const [rememberMe, setRememberMe] = useState(false);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const { login } = useAuth();
@@ -32,7 +33,7 @@ export function Login({ onNavigate }: LoginProps) {
       if (!res.ok) {
         setError(data.error || 'Login failed');
       } else {
-        login(data.token, data.user);
+        login(data.token, data.user, rememberMe);
         onNavigate('app');
       }
     } catch (err) {
@@ -139,7 +140,7 @@ export function Login({ onNavigate }: LoginProps) {
               <label className="text-xs font-bold text-text-main uppercase tracking-wider group-focus-within:text-nature-green transition-colors">Kata Sandi</label>
               <div className="relative">
                 <input 
-                  type="password"
+                  type={showPassword ? "text" : "password"}
                   required
                   value={password}
                   onChange={e => setPassword(e.target.value)}
@@ -150,17 +151,22 @@ export function Login({ onNavigate }: LoginProps) {
                   className="absolute right-4 top-1/2 -translate-y-1/2 text-text-muted hover:text-nature-green transition-colors"
                   onClick={() => setShowPassword(!showPassword)}
                 >
-                  <EyeOff className="w-4 h-4" />
+                  {showPassword ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
                 </button>
               </div>
             </div>
 
             <div className="flex items-center justify-between pt-2">
               <label className="flex items-center gap-2 cursor-pointer group">
-                <input type="checkbox" className="rounded accent-nature-green cursor-pointer" />
+                <input 
+                  type="checkbox" 
+                  checked={rememberMe}
+                  onChange={e => setRememberMe(e.target.checked)}
+                  className="rounded accent-nature-green cursor-pointer" 
+                />
                 <span className="text-sm font-bold text-text-muted group-hover:text-text-main transition-colors">Ingat Saya</span>
               </label>
-              <a href="#" className="text-sm font-bold text-nature-green hover:text-clay transition-colors">Lupa Kata Sandi?</a>
+              <button type="button" onClick={() => onNavigate('forgot-password')} className="text-sm font-bold text-nature-green hover:text-clay transition-colors">Lupa Kata Sandi?</button>
             </div>
 
             <button 

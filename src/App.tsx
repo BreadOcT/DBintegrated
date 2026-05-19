@@ -16,10 +16,13 @@ import { Login } from "./components/Login";
 import { Register } from "./components/Register";
 import { Profile } from "./components/Profile";
 import { Settings } from "./components/Settings";
+import { ForgotPassword } from "./components/ForgotPassword";
+import { ResetPassword } from "./components/ResetPassword";
 
 export default function App() {
   const { user, isLoading: isAuthLoading, logout } = useAuth();
-  const [authState, setAuthState] = useState<'landing' | 'login' | 'register' | 'app'>('landing');
+  const [authState, setAuthState] = useState<'landing' | 'login' | 'register' | 'forgot-password' | 'reset-password' | 'app'>('landing');
+  const [resetToken, setResetToken] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("dashboard");
   const tState = useTransactions();
   
@@ -39,6 +42,16 @@ export default function App() {
     }
   }, [user, isAuthLoading, authState]);
 
+  useEffect(() => {
+    // Check URL parameters for reset token
+    const searchParams = new URLSearchParams(window.location.search);
+    const token = searchParams.get('token');
+    if (token) {
+      setResetToken(token);
+      setAuthState('reset-password');
+    }
+  }, []);
+
   const handleNavigateToHistory = (filters: any) => {
     setHistoryFilters(filters);
     setActiveTab("history");
@@ -50,17 +63,21 @@ export default function App() {
     setActiveTab("add_review"); // Custom internal state for viewing form after scan
   };
 
-  const handleTransactionSubmit = (data: Omit<Transaction, "id">) => {
-    if (editingId) {
-      tState.updateTransaction(editingId, data);
-      setToastMessage("Berhasil memperbarui transaksi!");
-    } else {
-      tState.addTransaction(data);
-      setToastMessage("Transaksi berhasil disimpan!");
+  const handleTransactionSubmit = async (data: Omit<Transaction, "id">) => {
+    try {
+      if (editingId) {
+        await tState.updateTransaction(editingId, data);
+        setToastMessage("Berhasil memperbarui transaksi!");
+      } else {
+        await tState.addTransaction(data);
+        setToastMessage("Transaksi berhasil disimpan!");
+      }
+      setScannedData(null);
+      setEditingId(null);
+      setActiveTab("history"); // Redirect to history after adding
+    } catch (error) {
+      setToastMessage("Gagal menyimpan transaksi! Silakan coba lagi.");
     }
-    setScannedData(null);
-    setEditingId(null);
-    setActiveTab("history"); // Redirect to history after adding
   };
 
   const handleCancelForm = () => {
@@ -96,6 +113,8 @@ export default function App() {
   if (authState === 'landing' || !user) {
     if (authState === 'login') return <Login onNavigate={setAuthState} />;
     if (authState === 'register') return <Register onNavigate={setAuthState} />;
+    if (authState === 'forgot-password') return <ForgotPassword onNavigate={setAuthState} />;
+    if (authState === 'reset-password' && resetToken) return <ResetPassword onNavigate={setAuthState} token={resetToken} />;
     return <Landing onNavigate={setAuthState} />;
   }
 

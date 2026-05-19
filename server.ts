@@ -5,6 +5,7 @@ import mysql from "mysql2/promise";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import dotenv from "dotenv";
+import nodemailer from "nodemailer";
 
 dotenv.config();
 
@@ -53,9 +54,12 @@ if (process.env.DB_HOST && process.env.DB_USER && process.env.DB_NAME) {
             category VARCHAR(100) NOT NULL,
             date DATE NOT NULL,
             store_name VARCHAR(255),
+            raw_text LONGTEXT,
             FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
           )
         `);
+        
+        try { await dbPool.execute(`ALTER TABLE transactions ADD COLUMN raw_text LONGTEXT`); } catch (e) {}
         
         await dbPool.execute(`
           CREATE TABLE IF NOT EXISTS monthly_budgets (
@@ -170,6 +174,94 @@ async function startServer() {
     } catch (error) {
       console.error("Login Error:", error);
       res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
+  app.post("/api/auth/forgot-password", async (req: any, res: any) => {
+    try {
+      const { email } = req.body;
+      if (!email) {
+        return res.status(400).json({ error: "Email diperlukan" });
+      }
+
+      if (dbPool) {
+        const [rows]: any = await dbPool.execute('SELECT * FROM users WHERE email = ?', [email]);
+        if (rows.length === 0) {
+          return res.status(404).json({ error: "Email tidak ditemukan dalam sistem" });
+        }
+
+        const user = rows[0];
+        // Generate temporary reset token (e.g. JWT valid for 15 minutes)
+        const resetToken = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, { expiresIn: '15m' });
+        
+        // Setup Nodemailer transporter
+        // Konfigurasi ini menggunakan APP PASSWORD dari Google Workspace / Gmail
+        // Pastikan Anda sudah membuat App Password di pengaturan keamanan Gmail admin.keuangankhb@gmail.com
+        const transporter = nodemailer.createTransport({
+          service: 'gmail',
+          auth: {
+            user: 'admin.keuangankhb@gmail.com',
+            pass: process.env.EMAIL_APP_PASSWORD || 'PASSWORD_APLIKASI_GMAIL_ANDA' 
+          }
+        });
+
+        const resetLink = `http://localhost:3000/reset-password?token=${resetToken}`;
+        
+        const mailOptions = {
+          from: '"Catatan Keuangan KHB" <admin.keuangankhb@gmail.com>',
+          to: email,
+          subject: 'Reset Kata Sandi Anda - Catatan Keuangan KHB',
+          html: `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 10px;">
+              <h2 style="color: #22da47;">Reset Kata Sandi</h2>
+              <p>Halo ${user.name},</p>
+              <p>Kami menerima permintaan untuk mereset kata sandi akun Anda. Klik tombol di bawah ini untuk mereset kata sandi Anda:</p>
+              <div style="text-align: center; margin: 30px 0;">
+                <a href="${resetLink}" style="background-color: #22da47; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold;">Reset Kata Sandi</a>
+              </div>
+              <p>Atau Anda dapat menyalin tautan berikut ke browser Anda:</p>
+              <p style="word-break: break-all; color: #555;"><a href="${resetLink}">${resetLink}</a></p>
+              <p style="color: #888; font-size: 12px; margin-top: 30px;">Tautan ini hanya berlaku selama 15 menit. Jika Anda tidak merasa meminta reset kata sandi, abaikan saja pesan ini.</p>
+            </div>
+          `
+        };
+
+        // Send email
+        await transporter.sendMail(mailOptions);
+        
+        res.json({ message: "Tautan reset telah dikirim ke email Anda" });
+      } else {
+        res.status(501).json({ error: "Database belum dikonfigurasi" });
+      }
+    } catch (error) {
+      console.error("Forgot Password Error:", error);
+      res.status(500).json({ error: "Gagal mengirim email. Pastikan password aplikasi email sudah disetting di server (.env)." });
+    }
+  });
+
+  app.post("/api/auth/reset-password", async (req: any, res: any) => {
+    try {
+      const { token, password } = req.body;
+      if (!token || !password) {
+        return res.status(400).json({ error: "Token dan kata sandi baru diperlukan" });
+      }
+
+      try {
+        const decoded: any = jwt.verify(token, JWT_SECRET);
+        
+        if (dbPool) {
+          const hashedPassword = await bcrypt.hash(password, 10);
+          await dbPool.execute('UPDATE users SET password = ? WHERE id = ?', [hashedPassword, decoded.id]);
+          res.json({ message: "Kata sandi berhasil direset" });
+        } else {
+          res.status(501).json({ error: "Database belum dikonfigurasi" });
+        }
+      } catch (err) {
+        return res.status(400).json({ error: "Token tidak valid atau telah kedaluwarsa" });
+      }
+    } catch (error) {
+      console.error("Reset Password Error:", error);
+      res.status(500).json({ error: "Gagal mereset kata sandi" });
     }
   });
 
