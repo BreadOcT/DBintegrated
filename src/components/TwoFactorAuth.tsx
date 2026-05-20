@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Shield, QrCode, Copy, Download, Key, Mail, Smartphone, ChevronRight, AlertCircle, Check } from 'lucide-react';
+import { Shield, Copy, Download, Key, AlertCircle, Check, ChevronRight } from 'lucide-react';
 import { Modal } from './ui/Modal';
 import { useAuth } from '../hooks/useAuth';
 
@@ -10,15 +10,13 @@ interface TwoFactorAuthProps {
   onToggle2FA: (enabled: boolean, method?: string) => Promise<void>;
 }
 
-type Step = 'menu' | 'setup' | 'verifySetup' | 'backupCodes' | 'manageMethods' | 'disable';
-type Method = 'authenticator' | 'email' | 'sms';
+// Langkah 'setup' (pilih metode) dihapus karena langsung tembak Email
+type Step = 'menu' | 'verifySetup' | 'backupCodes' | 'manageMethods' | 'disable';
 
 export function TwoFactorAuth({ isOpen, onClose, is2FAEnabled, onToggle2FA }: TwoFactorAuthProps) {
   const { token } = useAuth();
   const [step, setStep] = useState<Step>(is2FAEnabled ? 'manageMethods' : 'menu');
-  const [selectedMethod, setSelectedMethod] = useState<Method>('authenticator');
-  const [qrCode, setQrCode] = useState('');
-  const [secret, setSecret] = useState('');
+  
   const [verificationCode, setVerificationCode] = useState('');
   const [verificationError, setVerificationError] = useState('');
   const [backupCodes, setBackupCodes] = useState<string[]>([]);
@@ -37,8 +35,9 @@ export function TwoFactorAuth({ isOpen, onClose, is2FAEnabled, onToggle2FA }: Tw
     }
   }, [isOpen, is2FAEnabled]);
 
-  const generateQRCode = async () => {
+  const requestOTP = async () => {
     setLoading(true);
+    setVerificationError('');
     try {
       const res = await fetch('/api/auth/2fa/generate', {
         method: 'POST',
@@ -46,16 +45,15 @@ export function TwoFactorAuth({ isOpen, onClose, is2FAEnabled, onToggle2FA }: Tw
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({ method: selectedMethod })
+        body: JSON.stringify({ method: 'email' }) // Langsung set permanen ke email
       });
-      const data = await res.json();
       if (res.ok) {
-        setQrCode(data.qrCode);
-        setSecret(data.secret);
         setStep('verifySetup');
+      } else {
+        setVerificationError('Gagal mengirim kode OTP ke email');
       }
     } catch (error) {
-      setVerificationError('Gagal generate QR Code');
+      setVerificationError('Gagal mengirim kode verifikasi');
     } finally {
       setLoading(false);
     }
@@ -71,12 +69,12 @@ export function TwoFactorAuth({ isOpen, onClose, is2FAEnabled, onToggle2FA }: Tw
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({ code: verificationCode, method: selectedMethod })
+        body: JSON.stringify({ code: verificationCode, method: 'email' })
       });
       const data = await res.json();
       if (res.ok) {
         setBackupCodes(data.backupCodes);
-        await onToggle2FA(true, selectedMethod);
+        await onToggle2FA(true, 'email');
         setStep('backupCodes');
       } else {
         setVerificationError(data.error || 'Kode tidak valid');
@@ -135,29 +133,33 @@ export function TwoFactorAuth({ isOpen, onClose, is2FAEnabled, onToggle2FA }: Tw
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Autentikasi Dua Faktor">
       <div className="space-y-6">
-        {/* MENU - Pilih Aksi */}
+        {/* MENU - Halaman Awal */}
         {step === 'menu' && (
           <div className="space-y-4">
             <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 flex gap-3">
               <AlertCircle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
               <div>
                 <p className="text-sm font-bold text-blue-900">Tingkatkan Keamanan Akun</p>
-                <p className="text-xs text-blue-700 mt-1">Autentikasi 2 Faktor menambah lapisan keamanan dengan meminta verifikasi tambahan saat login.</p>
+                <p className="text-xs text-blue-700 mt-1">Autentikasi 2 Faktor menambah lapisan keamanan dengan mengirimkan kode OTP ke email Anda saat login.</p>
               </div>
             </div>
 
             <div className="space-y-3">
+              {verificationError && (
+                <p className="text-xs text-red-600 text-center font-bold mb-2">{verificationError}</p>
+              )}
               <button
-                onClick={() => setStep('setup')}
-                className="w-full flex items-center justify-between p-4 border-2 border-sand rounded-2xl hover:bg-sand/30 transition-colors text-left group"
+                onClick={requestOTP}
+                disabled={loading}
+                className="w-full flex items-center justify-between p-4 border-2 border-sand rounded-2xl hover:bg-sand/30 transition-colors text-left group disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-full bg-nature-green/20 flex items-center justify-center group-hover:bg-nature-green/30 transition-colors">
                     <Key className="w-5 h-5 text-nature-green" />
                   </div>
                   <div>
-                    <p className="font-bold text-text-main">Aktifkan 2FA</p>
-                    <p className="text-xs text-text-muted mt-0.5">Setup autentikasi dua faktor untuk akun Anda</p>
+                    <p className="font-bold text-text-main">{loading ? 'Memproses...' : 'Aktifkan via Email OTP'}</p>
+                    <p className="text-xs text-text-muted mt-0.5">Setup autentikasi keamanan untuk akun Anda</p>
                   </div>
                 </div>
                 <ChevronRight className="w-5 h-5 text-text-muted" />
@@ -166,119 +168,14 @@ export function TwoFactorAuth({ isOpen, onClose, is2FAEnabled, onToggle2FA }: Tw
           </div>
         )}
 
-        {/* SETUP - Pilih Metode */}
-        {step === 'setup' && (
-          <div className="space-y-4">
-            <div>
-              <p className="text-sm font-bold text-text-main mb-3">Pilih Metode Autentikasi:</p>
-              <div className="space-y-2">
-                <button
-                  onClick={() => setSelectedMethod('authenticator')}
-                  className={`w-full flex items-center gap-3 p-3 rounded-2xl border-2 transition-all ${
-                    selectedMethod === 'authenticator'
-                      ? 'border-clay bg-clay/10'
-                      : 'border-sand hover:bg-sand/20'
-                  }`}
-                >
-                  <div className={`w-4 h-4 rounded-full border-2 ${selectedMethod === 'authenticator' ? 'bg-clay border-clay' : 'border-sand'}`} />
-                  <div className="text-left">
-                    <p className="font-bold text-sm text-text-main">Google Authenticator</p>
-                    <p className="text-xs text-text-muted">Aplikasi authenticator di smartphone Anda</p>
-                  </div>
-                </button>
-
-                <button
-                  onClick={() => setSelectedMethod('email')}
-                  className={`w-full flex items-center gap-3 p-3 rounded-2xl border-2 transition-all ${
-                    selectedMethod === 'email'
-                      ? 'border-clay bg-clay/10'
-                      : 'border-sand hover:bg-sand/20'
-                  }`}
-                >
-                  <div className={`w-4 h-4 rounded-full border-2 ${selectedMethod === 'email' ? 'bg-clay border-clay' : 'border-sand'}`} />
-                  <div className="text-left">
-                    <p className="font-bold text-sm text-text-main">Email OTP</p>
-                    <p className="text-xs text-text-muted">Kode dikirim ke email Anda</p>
-                  </div>
-                </button>
-
-                <button
-                  onClick={() => setSelectedMethod('sms')}
-                  className={`w-full flex items-center gap-3 p-3 rounded-2xl border-2 transition-all ${
-                    selectedMethod === 'sms'
-                      ? 'border-clay bg-clay/10'
-                      : 'border-sand hover:bg-sand/20'
-                  }`}
-                >
-                  <div className={`w-4 h-4 rounded-full border-2 ${selectedMethod === 'sms' ? 'bg-clay border-clay' : 'border-sand'}`} />
-                  <div className="text-left">
-                    <p className="font-bold text-sm text-text-main">SMS OTP</p>
-                    <p className="text-xs text-text-muted">Kode dikirim ke nomor ponsel Anda</p>
-                  </div>
-                </button>
-              </div>
-            </div>
-
-            <button
-              onClick={generateQRCode}
-              disabled={loading}
-              className="w-full bg-clay text-white py-2.5 rounded-2xl font-bold text-sm hover:bg-clay/90 transition-colors disabled:opacity-50"
-            >
-              {loading ? 'Memproses...' : 'Lanjutkan'}
-            </button>
-            <button
-              onClick={() => setStep('menu')}
-              className="w-full border-2 border-sand text-text-main py-2.5 rounded-2xl font-bold text-sm hover:bg-sand/20 transition-colors"
-            >
-              Batal
-            </button>
-          </div>
-        )}
-
-        {/* VERIFY SETUP - Masukkan Kode */}
+        {/* VERIFY SETUP - Masukkan Kode OTP Email */}
         {step === 'verifySetup' && (
           <div className="space-y-4">
-            {selectedMethod === 'authenticator' && (
-              <>
-                <div className="bg-sand/30 rounded-2xl p-6 flex items-center justify-center border-2 border-sand">
-                  <img src={qrCode} alt="QR Code" className="w-48 h-48" />
-                </div>
-                <div className="bg-amber-50 border border-amber-200 rounded-2xl p-3 flex gap-2">
-                  <AlertCircle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
-                  <div className="text-xs text-amber-700">
-                    <p className="font-bold">Langkah 1:</p> Buka Google Authenticator atau aplikasi serupa
-                    <p className="font-bold mt-2">Langkah 2:</p> Scan QR Code di atas
-                    <p className="font-bold mt-2">Langkah 3:</p> Masukkan kode 6 digit yang ditampilkan
-                  </div>
-                </div>
-
-                <div>
-                  <p className="text-xs text-text-muted mb-2">Manual Key (jika scan QR Code gagal):</p>
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      value={secret}
-                      readOnly
-                      className="flex-1 px-3 py-2 rounded-xl border border-sand text-xs font-mono bg-sand/20"
-                    />
-                    <button
-                      onClick={() => copyToClipboard(secret)}
-                      className="p-2 rounded-xl border border-sand hover:bg-sand/30 transition-colors"
-                    >
-                      <Copy className={`w-4 h-4 ${copied ? 'text-nature-green' : 'text-text-muted'}`} />
-                    </button>
-                  </div>
-                </div>
-              </>
-            )}
-
-            {(selectedMethod === 'email' || selectedMethod === 'sms') && (
-              <div className="bg-blue-50 border border-blue-200 rounded-2xl p-3">
-                <p className="text-sm text-blue-900 font-medium">
-                  Kode verifikasi akan dikirim ke {selectedMethod === 'email' ? 'email' : 'ponsel'} Anda
-                </p>
-              </div>
-            )}
+            <div className="bg-blue-50 border border-blue-200 rounded-2xl p-3">
+              <p className="text-sm text-blue-900 font-medium">
+                Kode verifikasi telah dikirim ke alamat email Anda.
+              </p>
+            </div>
 
             <div>
               <label className="text-xs font-bold text-text-main mb-2 block">Masukkan Kode 6 Digit:</label>
@@ -306,13 +203,13 @@ export function TwoFactorAuth({ isOpen, onClose, is2FAEnabled, onToggle2FA }: Tw
             </button>
             <button
               onClick={() => {
-                setStep('setup');
+                setStep('menu'); // Kembali ke halaman awal
                 setVerificationCode('');
                 setVerificationError('');
               }}
               className="w-full border-2 border-sand text-text-main py-2.5 rounded-2xl font-bold text-sm hover:bg-sand/20 transition-colors"
             >
-              Kembali
+              Batal
             </button>
           </div>
         )}
@@ -330,7 +227,7 @@ export function TwoFactorAuth({ isOpen, onClose, is2FAEnabled, onToggle2FA }: Tw
 
             <div className="bg-red-50 border border-red-200 rounded-2xl p-3">
               <p className="text-xs text-red-700 font-medium">
-                ⚠️ Jika Anda kehilangan akses ke metode 2FA, gunakan kode ini untuk login. Simpan di tempat aman!
+                ⚠️ Jika Anda kehilangan akses ke email, gunakan kode ini untuk login. Simpan di tempat aman!
               </p>
             </div>
 
@@ -382,8 +279,8 @@ export function TwoFactorAuth({ isOpen, onClose, is2FAEnabled, onToggle2FA }: Tw
               <div className="flex items-center gap-2">
                 <Key className="w-5 h-5 text-clay" />
                 <div>
-                  <p className="font-bold text-sm text-text-main">Metode Aktif: Google Authenticator</p>
-                  <p className="text-xs text-text-muted mt-1">Diaktifkan 2 bulan lalu</p>
+                  <p className="font-bold text-sm text-text-main">Metode Aktif: Email OTP</p>
+                  <p className="text-xs text-text-muted mt-1">Status: Terlindungi</p>
                 </div>
               </div>
             </div>

@@ -22,6 +22,8 @@ export function Profile({ onLogout }: ProfileProps) {
   
   // Feature states
   const [is2FAEnabled, setIs2FAEnabled] = useState(false);
+  
+  // Notification states
   const [weeklyReport, setWeeklyReport] = useState(true);
   const [billReminder, setBillReminder] = useState(true);
   const [promoOffer, setPromoOffer] = useState(false);
@@ -39,6 +41,9 @@ export function Profile({ onLogout }: ProfileProps) {
   const [passwordError, setPasswordError] = useState('');
   const [passwordSuccess, setPasswordSuccess] = useState('');
 
+  // device yang terhubung 
+  const [devices, setDevices] = useState<any[]>([]);
+
   useEffect(() => {
     if (user) {
       setProfileName(user.name);
@@ -48,13 +53,82 @@ export function Profile({ onLogout }: ProfileProps) {
       setEditName(user.name);
       setEditPhone(user.phone || '');
       setEditPhoto(user.photo || '');
+      
+      // Load preferensi notifikasi dari database jika ada
+      if (user.weekly_report !== undefined) setWeeklyReport(Boolean(user.weekly_report));
+      if (user.bill_reminder !== undefined) setBillReminder(Boolean(user.bill_reminder));
+      if (user.promo_offer !== undefined) setPromoOffer(Boolean(user.promo_offer));
+
+      // Ambil data perangkat dari backend asli
+      fetchDevices();
     }
   }, [user]);
+
+  const fetchDevices = async () => {
+    try {
+      const res = await fetch('/api/auth/devices', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setDevices(data);
+      }
+    } catch (err) {
+      console.error("Gagal memuat perangkat:", err);
+    }
+  };
+
+  const handleLogoutDevice = async (deviceId: string) => {
+    try {
+      const res = await fetch(`/api/auth/devices/${deviceId}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        fetchDevices();
+      }
+    } catch (err) {
+      console.error("Gagal mengeluarkan perangkat:", err);
+    }
+  };
 
   const handleSaveProfile = async () => {
     await updateProfile({ name: editName, phone: editPhone, photo: editPhoto });
     setActiveModal('none');
   };
+
+  // --- FUNGSI BARU: Menyimpan pengaturan notifikasi ke backend ---
+  const handleToggleNotification = async (type: 'weekly' | 'bill' | 'promo', currentValue: boolean) => {
+    const newValue = !currentValue;
+    
+    // 1. Optimistic UI update (ubah tombol seketika biar terasa cepat)
+    if (type === 'weekly') setWeeklyReport(newValue);
+    if (type === 'bill') setBillReminder(newValue);
+    if (type === 'promo') setPromoOffer(newValue);
+
+    // 2. Kirim ke backend
+    try {
+      await fetch('/api/auth/notifications', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          weekly_report: type === 'weekly' ? newValue : weeklyReport,
+          bill_reminder: type === 'bill' ? newValue : billReminder,
+          promo_offer: type === 'promo' ? newValue : promoOffer
+        })
+      });
+    } catch (error) {
+      console.error('Gagal memperbarui notifikasi:', error);
+      // Kalau error/gagal nyambung, kembalikan posisi tombol ke semula
+      if (type === 'weekly') setWeeklyReport(currentValue);
+      if (type === 'bill') setBillReminder(currentValue);
+      if (type === 'promo') setPromoOffer(currentValue);
+    }
+  };
+  // -------------------------------------------------------------
 
   const handleSavePassword = async () => {
     setPasswordError('');
@@ -193,7 +267,9 @@ export function Profile({ onLogout }: ProfileProps) {
           <div className="flex items-center justify-between py-2">
             <div>
               <p className="font-bold text-sm text-text-main">Perangkat Terhubung</p>
-              <p className="text-xs text-text-muted mt-0.5">2 perangkat aktif</p>
+              <p className="text-xs text-text-muted mt-0.5">
+                {devices.length === 0 ? 'Memuat perangkat...' : `${devices.length} perangkat aktif`}
+              </p>
             </div>
             <button onClick={() => setActiveModal('devices')} className="text-clay font-bold text-xs hover:underline">Kelola</button>
           </div>
@@ -209,10 +285,10 @@ export function Profile({ onLogout }: ProfileProps) {
               <p className="text-xs text-text-muted mt-0.5">Terima rekapan keuangan via email</p>
             </div>
             <div 
-              onClick={() => setWeeklyReport(!weeklyReport)}
-              className={`w-10 h-6 rounded-full relative cursor-pointer outline-none ${weeklyReport ? 'bg-nature-green' : 'bg-sand'}`}
+              onClick={() => handleToggleNotification('weekly', weeklyReport)}
+              className={`w-10 h-6 rounded-full relative cursor-pointer outline-none transition-colors duration-300 ${weeklyReport ? 'bg-nature-green' : 'bg-sand'}`}
             >
-              <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${weeklyReport ? 'left-5' : 'left-1'}`}></div>
+              <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all duration-300 ${weeklyReport ? 'left-5' : 'left-1'}`}></div>
             </div>
           </div>
           <div className="flex items-center justify-between py-2 border-b border-sand/50">
@@ -221,10 +297,10 @@ export function Profile({ onLogout }: ProfileProps) {
               <p className="text-xs text-text-muted mt-0.5">Notifikasi H-3 jatuh tempo</p>
             </div>
             <div 
-              onClick={() => setBillReminder(!billReminder)}
-              className={`w-10 h-6 rounded-full relative cursor-pointer outline-none ${billReminder ? 'bg-nature-green' : 'bg-sand'}`}
+              onClick={() => handleToggleNotification('bill', billReminder)}
+              className={`w-10 h-6 rounded-full relative cursor-pointer outline-none transition-colors duration-300 ${billReminder ? 'bg-nature-green' : 'bg-sand'}`}
             >
-              <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${billReminder ? 'left-5' : 'left-1'}`}></div>
+              <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all duration-300 ${billReminder ? 'left-5' : 'left-1'}`}></div>
             </div>
           </div>
           <div className="flex items-center justify-between py-2">
@@ -233,10 +309,10 @@ export function Profile({ onLogout }: ProfileProps) {
               <p className="text-xs text-text-muted mt-0.5">Info fitur baru dan diskon</p>
             </div>
             <div 
-              onClick={() => setPromoOffer(!promoOffer)}
-              className={`w-10 h-6 rounded-full relative cursor-pointer outline-none ${promoOffer ? 'bg-nature-green' : 'bg-sand'}`}
+              onClick={() => handleToggleNotification('promo', promoOffer)}
+              className={`w-10 h-6 rounded-full relative cursor-pointer outline-none transition-colors duration-300 ${promoOffer ? 'bg-nature-green' : 'bg-sand'}`}
             >
-              <div className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow-sm transition-all ${promoOffer ? 'left-5' : 'left-1'}`}></div>
+              <div className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow-sm transition-all duration-300 ${promoOffer ? 'left-5' : 'left-1'}`}></div>
             </div>
           </div>
         </div>
@@ -339,19 +415,31 @@ export function Profile({ onLogout }: ProfileProps) {
 
       <Modal isOpen={activeModal === 'devices'} onClose={() => setActiveModal('none')} title="Perangkat Terhubung">
         <div className="space-y-4">
-          <div className="p-4 border border-sand rounded-2xl flex items-center justify-between">
-            <div>
-              <p className="font-bold text-sm text-text-main flex items-center gap-2">iPhone 13 Pro <span className="bg-nature-green/10 text-nature-green text-[10px] px-2 py-0.5 rounded-full">Saat ini</span></p>
-              <p className="text-xs text-text-muted mt-1">Bandung, Indonesia • Terakhir aktif 2 menit lalu</p>
-            </div>
-          </div>
-          <div className="p-4 border border-sand rounded-2xl flex items-center justify-between">
-            <div>
-              <p className="font-bold text-sm text-text-main">MacBook Air M1</p>
-              <p className="text-xs text-text-muted mt-1">Jakarta, Indonesia • Terakhir aktif 2 hari lalu</p>
-            </div>
-            <button className="text-red-500 hover:bg-red-50 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors">Keluarkan</button>
-          </div>
+          {devices.length === 0 ? (
+            <p className="text-sm text-text-muted text-center py-4">Tidak ada perangkat lain terdeteksi.</p>
+          ) : (
+            devices.map((dev: any, index: number) => (
+              <div key={dev.id || index} className="p-4 border border-sand rounded-2xl flex items-center justify-between">
+                <div>
+                  <p className="font-bold text-sm text-text-main flex items-center gap-2">
+                    {dev.device_name} 
+                    {index === 0 && <span className="bg-nature-green/10 text-nature-green text-[10px] px-2 py-0.5 rounded-full">Sesi Ini</span>}
+                  </p>
+                  <p className="text-xs text-text-muted mt-1">
+                    {dev.location} • Aktif: {new Date(dev.last_active).toLocaleDateString('id-ID')}
+                  </p>
+                </div>
+                {index > 0 && (
+                  <button 
+                    onClick={() => handleLogoutDevice(dev.id)}
+                    className="text-red-500 hover:bg-red-50 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors"
+                  >
+                    Keluarkan
+                  </button>
+                )}
+              </div>
+            ))
+          )}
         </div>
       </Modal>
 
