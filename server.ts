@@ -8,6 +8,7 @@ import dotenv from "dotenv";
 import nodemailer from "nodemailer";
 import QRCode from "qrcode";
 import { authenticator } from "otplib";
+import crypto from "crypto";
 
 dotenv.config();
 
@@ -62,6 +63,7 @@ if (process.env.DB_HOST && process.env.DB_USER && process.env.DB_NAME) {
         `);
         
         try { await dbPool.execute(`ALTER TABLE transactions ADD COLUMN raw_text LONGTEXT`); } catch (e) {}
+        try { await dbPool.execute(`ALTER TABLE transactions ADD COLUMN items LONGTEXT`); } catch (e) {}
         
         await dbPool.execute(`
           CREATE TABLE IF NOT EXISTS monthly_budgets (
@@ -178,6 +180,48 @@ async function startServer() {
       }
     } catch (error) {
       console.error("Login Error:", error);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
+  app.post("/api/auth/register", async (req, res) => {
+    try {
+      const { email, password, name } = req.body;
+      if (!email || !password || !name) {
+        return res.status(400).json({ error: "Missing email, password, or name" });
+      }
+
+      const hashedPassword = await bcrypt.hash(password, 10);
+      const newUserId = crypto.randomUUID();
+
+      if (dbPool) {
+        // Check if user already exists
+        const [existing]: any = await dbPool.execute('SELECT * FROM users WHERE email = ?', [email]);
+        if (existing.length > 0) {
+          return res.status(400).json({ error: "Email sudah terdaftar" });
+        }
+
+        // Insert new user
+        await dbPool.execute(
+          'INSERT INTO users (id, email, password, name) VALUES (?, ?, ?, ?)',
+          [newUserId, email, hashedPassword, name]
+        );
+
+        const token = jwt.sign({ id: newUserId, email, name }, JWT_SECRET, { expiresIn: '7d' });
+        res.status(201).json({
+          token,
+          user: { id: newUserId, name, email }
+        });
+      } else {
+        // Mock register for UI testing when DB is not connected
+        const token = jwt.sign({ id: newUserId, email, name }, JWT_SECRET, { expiresIn: '7d' });
+        res.status(201).json({
+          token,
+          user: { id: newUserId, name, email }
+        });
+      }
+    } catch (error) {
+      console.error("Register Error:", error);
       res.status(500).json({ error: "Internal server error" });
     }
   });
@@ -584,8 +628,29 @@ async function startServer() {
   app.get("/api/transactions", authenticateToken, async (req: any, res: any) => {
     if (dbPool) {
       try {
-        const [rows] = await dbPool.execute('SELECT * FROM transactions WHERE user_id = ? ORDER BY date DESC', [req.user.id]);
-        res.json(rows);
+        const [rows]: any = await dbPool.execute('SELECT * FROM transactions WHERE user_id = ? ORDER BY date DESC', [req.user.id]);
+        const mappedRows = rows.map((r: any) => {
+          let itemsParsed = [];
+          if (r.items) {
+            try {
+              itemsParsed = typeof r.items === 'string' ? JSON.parse(r.items) : r.items;
+            } catch (e) {
+              itemsParsed = [];
+            }
+          }
+          return {
+            id: r.id,
+            type: r.type,
+            category: r.category,
+            amount: Number(r.amount),
+            date: r.date,
+            description: r.description,
+            rawText: r.raw_text,
+            storeName: r.store_name,
+            items: itemsParsed
+          };
+        });
+        res.json(mappedRows);
       } catch (error) {
         console.error("Transactions Fetch Error:", error);
         res.status(500).json({ error: "Failed to fetch transactions" });
@@ -598,11 +663,12 @@ async function startServer() {
   app.post("/api/transactions", authenticateToken, async (req: any, res: any) => {
     if (dbPool) {
       try {
-        const { id, type, category, amount, date, description, rawText, storeName } = req.body;
+        const { id, type, category, amount, date, description, rawText, storeName, items } = req.body;
         const newId = id || crypto.randomUUID();
+        const itemsStr = items ? JSON.stringify(items) : null;
         await dbPool.execute(
-          'INSERT INTO transactions (id, user_id, type, category, amount, date, description, raw_text, store_name) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-          [newId, req.user.id, type, category, amount, date, description || null, rawText || null, storeName || null]
+          'INSERT INTO transactions (id, user_id, type, category, amount, date, description, raw_text, store_name, items) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+          [newId, req.user.id, type, category, amount, date, description || null, rawText || null, storeName || null, itemsStr]
         );
         res.status(201).json({ message: "Transaction created", id: newId });
       } catch (error) {
@@ -617,10 +683,11 @@ async function startServer() {
   app.put("/api/transactions/:id", authenticateToken, async (req: any, res: any) => {
     if (dbPool) {
       try {
-        const { type, category, amount, date, description, rawText, storeName } = req.body;
+        const { type, category, amount, date, description, rawText, storeName, items } = req.body;
+        const itemsStr = items ? JSON.stringify(items) : null;
         const [result]: any = await dbPool.execute(
-          'UPDATE transactions SET type=?, category=?, amount=?, date=?, description=?, raw_text=?, store_name=? WHERE id=? AND user_id=?',
-          [type, category, amount, date, description || null, rawText || null, storeName || null, req.params.id, req.user.id]
+          'UPDATE transactions SET type=?, category=?, amount=?, date=?, description=?, raw_text=?, store_name=?, items=? WHERE id=? AND user_id=?',
+          [type, category, amount, date, description || null, rawText || null, storeName || null, itemsStr, req.params.id, req.user.id]
         );
         if (result.affectedRows === 0) {
             return res.status(404).json({ error: "Transaction not found or unauthorized" });

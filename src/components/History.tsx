@@ -4,7 +4,8 @@ import { Transaction } from "../types";
 import { useSettings } from "../hooks/useSettings";
 import { 
   Calendar, Filter, Trash2, Edit, Download, AlertTriangle, X, Plus, Minus,
-  Home, Briefcase, ShoppingBag, TrendingUp, Bus, Package, Users, Tag, PlusCircle
+  Home, Briefcase, ShoppingBag, TrendingUp, Bus, Package, Users, Tag, PlusCircle,
+  ChevronDown, ChevronUp
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { Button } from "./ui/Button";
@@ -44,6 +45,14 @@ export function History({ transactions, onDelete, onEdit, initialFilters }: Hist
   const [endDate, setEndDate] = useState<string>(initialFilters?.endDate || "");
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [expandedTrx, setExpandedTrx] = useState<Record<string, boolean>>({});
+
+  const toggleExpand = (id: string) => {
+    setExpandedTrx(prev => ({
+      ...prev,
+      [id]: !prev[id]
+    }));
+  };
 
   React.useEffect(() => {
     if (initialFilters) {
@@ -186,6 +195,8 @@ export function History({ transactions, onDelete, onEdit, initialFilters }: Hist
                   <div className="space-y-3">
                     {dateTransactions.map(t => {
                       const { icon: Icon, color, bg } = getCategoryStyle(t.category, t.type as 'income' | 'expense');
+                      const hasItems = t.items && t.items.length > 0;
+                      const isExpanded = !!expandedTrx[t.id];
                       return (
                         <motion.div 
                           key={`card-${t.id}`}
@@ -193,31 +204,69 @@ export function History({ transactions, onDelete, onEdit, initialFilters }: Hist
                           animate={{ opacity: 1, scale: 1 }}
                           exit={{ opacity: 0, x: -20 }}
                           transition={{ duration: 0.2 }}
-                          className="flex justify-between items-center bg-bg-card p-3 sm:p-4 rounded-2xl shadow-sm border border-sand/50 hover:border-sand transition-colors gap-2"
+                          className="flex flex-col bg-bg-card p-3 sm:p-4 rounded-2xl shadow-sm border border-sand/50 hover:border-sand transition-colors"
                         >
-                          <div className="flex items-center gap-3 sm:gap-4 flex-1 min-w-0">
-                            <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full flex flex-shrink-0 items-center justify-center transition-colors ${bg} ${color}`}>
-                              <Icon className="w-5 h-5 sm:w-6 sm:h-6" />
+                          <div className="flex justify-between items-center gap-2">
+                            <div className="flex items-center gap-3 sm:gap-4 flex-1 min-w-0">
+                              <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full flex flex-shrink-0 items-center justify-center transition-colors ${bg} ${color}`}>
+                                <Icon className="w-5 h-5 sm:w-6 sm:h-6" />
+                              </div>
+                              <div className="flex flex-col flex-1 min-w-0">
+                                <p className={`text-[9px] sm:text-[10px] mb-0.5 uppercase tracking-wider font-semibold truncate ${color}`}>{t.category}</p>
+                                <h4 className="font-bold text-text-main text-xs sm:text-sm truncate">{t.description}</h4>
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  {t.storeName && (
+                                    <span className="text-[9px] sm:text-[10px] text-text-muted mt-0.5 font-semibold bg-sand/35 px-1.5 py-0.5 rounded truncate">{t.storeName}</span>
+                                  )}
+                                  {hasItems && (
+                                    <button 
+                                      onClick={() => toggleExpand(t.id)} 
+                                      className="inline-flex items-center gap-0.5 text-[9px] sm:text-[10px] font-bold text-clay bg-clay/10 hover:bg-clay/20 px-1.5 py-0.5 rounded transition-all mt-0.5 active:scale-95"
+                                    >
+                                      {isExpanded ? "Sembunyikan Rincian" : `Rincian (${t.items.length})`}
+                                      {isExpanded ? <ChevronUp className="w-2.5 h-2.5" /> : <ChevronDown className="w-2.5 h-2.5" />}
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
                             </div>
-                            <div className="flex flex-col flex-1 min-w-0">
-                              <p className={`text-[9px] sm:text-[10px] mb-0.5 uppercase tracking-wider font-semibold truncate ${color}`}>{t.category}</p>
-                              <h4 className="font-bold text-text-main text-xs sm:text-sm truncate">{t.description}</h4>
-                              {t.storeName && (
-                                <p className="text-[9px] sm:text-[10px] text-text-muted mt-0.5 truncate">{t.storeName}</p>
-                              )}
+                            <div className="flex flex-col items-end flex-shrink-0 pl-1 border-l border-sand/30">
+                              <div className={`font-bold text-[11px] sm:text-sm break-all max-w-[120px] text-right mb-1.5 ${t.type === 'income' ? 'text-nature-green' : 'text-clay'}`}>
+                                {t.type === 'income' ? '+' : '-'}{formatCurrency(t.amount)}
+                              </div>
+                              <div className="flex items-center gap-1">
+                                {onEdit && (
+                                  <button onClick={() => onEdit(t)} className="text-text-muted hover:text-clay p-1 rounded-md bg-sand/30 hover:bg-sand/50 transition-colors"><Edit className="h-3.5 w-3.5" /></button>
+                                )}
+                                <button onClick={() => setDeleteId(t.id)} className="text-text-muted hover:text-rose-600 p-1 rounded-md bg-sand/30 hover:bg-rose-100 transition-colors"><Trash2 className="h-3.5 w-3.5" /></button>
+                              </div>
                             </div>
                           </div>
-                          <div className="flex flex-col items-end flex-shrink-0 pl-1 border-l border-sand/30">
-                            <div className={`font-bold text-xs sm:text-sm whitespace-nowrap mb-1.5 ${t.type === 'income' ? 'text-nature-green' : 'text-clay'}`}>
-                              {t.type === 'income' ? '+' : '-'}{formatCurrency(t.amount)}
-                            </div>
-                            <div className="flex items-center gap-1">
-                              {onEdit && (
-                                <button onClick={() => onEdit(t)} className="text-text-muted hover:text-clay p-1 rounded-md bg-sand/30 hover:bg-sand/50 transition-colors"><Edit className="h-3.5 w-3.5" /></button>
-                              )}
-                              <button onClick={() => setDeleteId(t.id)} className="text-text-muted hover:text-rose-600 p-1 rounded-md bg-sand/30 hover:bg-rose-100 transition-colors"><Trash2 className="h-3.5 w-3.5" /></button>
-                            </div>
-                          </div>
+
+                          {/* Collapsible item details */}
+                          {hasItems && isExpanded && (
+                            <motion.div 
+                              initial={{ opacity: 0, height: 0 }}
+                              animate={{ opacity: 1, height: "auto" }}
+                              exit={{ opacity: 0, height: 0 }}
+                              className="mt-3 pt-3 border-t border-sand/30 pl-10 sm:pl-16 pr-1"
+                            >
+                              <div className="space-y-1.5">
+                                {t.items!.map((item, idx) => (
+                                  <div key={idx} className="flex justify-between items-center text-[11px] sm:text-xs text-text-main font-medium py-0.5 border-b border-dashed border-sand/30 last:border-0">
+                                    <span className="flex items-center gap-1 text-text-main truncate max-w-[150px] sm:max-w-xs">
+                                      <span className="w-1.5 h-1.5 rounded-full bg-clay/60 shrink-0"></span>
+                                      <span className="truncate">{item.name}</span> 
+                                      <span className="text-text-muted text-[9px] sm:text-[10px] ml-1 bg-sand/30 px-1 rounded shrink-0">x{item.qty || 1}</span>
+                                    </span>
+                                    <span className="font-extrabold text-clay shrink-0">
+                                      {formatCurrency((item.price || 0) * (item.qty || 1))}
+                                    </span>
+                                  </div>
+                                ))}
+                              </div>
+                            </motion.div>
+                          )}
                         </motion.div>
                       );
                     })}

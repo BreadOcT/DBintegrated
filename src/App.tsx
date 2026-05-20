@@ -9,6 +9,7 @@ import { SimpleAccountingReport } from "./components/Report";
 import { Notifications } from "./components/Notifications";
 import { useTransactions } from "./hooks/useTransactions";
 import { useAuth } from "./hooks/useAuth";
+import { useNotifications } from "./hooks/useNotifications";
 import { Transaction } from "./types";
 import { Toast } from "./components/ui/Toast";
 import { Landing } from "./components/Landing";
@@ -21,6 +22,7 @@ import { ResetPassword } from "./components/ResetPassword";
 
 export default function App() {
   const { user, isLoading: isAuthLoading, logout } = useAuth();
+  const { notifications, unreadCount, addNotification, markAsRead, markAllAsRead } = useNotifications();
   const [authState, setAuthState] = useState<'landing' | 'login' | 'register' | 'forgot-password' | 'reset-password' | 'app'>('landing');
   const [resetToken, setResetToken] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("dashboard");
@@ -65,18 +67,49 @@ export default function App() {
 
   const handleTransactionSubmit = async (data: Omit<Transaction, "id">) => {
     try {
+      const formattedAmount = new Intl.NumberFormat("id-ID", {
+        style: "currency",
+        currency: "IDR",
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0,
+      }).format(data.amount);
+
       if (editingId) {
         await tState.updateTransaction(editingId, data);
         setToastMessage("Berhasil memperbarui transaksi!");
+        addNotification({
+          title: "Transaksi Diperbarui",
+          message: `Transaksi "${data.description}" senilai ${formattedAmount} telah berhasil diperbarui.`,
+          type: "success"
+        });
       } else {
         await tState.addTransaction(data);
         setToastMessage("Transaksi berhasil disimpan!");
+        
+        if (scannedData) {
+          addNotification({
+            title: "Transaksi Disimpan (Scan AI)",
+            message: `Transaksi "${data.description}" senilai ${formattedAmount} dari scan struk berhasil disimpan ke riwayat.`,
+            type: "success"
+          });
+        } else {
+          addNotification({
+            title: "Transaksi Manual Disimpan",
+            message: `Transaksi manual "${data.description}" senilai ${formattedAmount} berhasil disimpan ke riwayat.`,
+            type: "success"
+          });
+        }
       }
       setScannedData(null);
       setEditingId(null);
       setActiveTab("history"); // Redirect to history after adding
     } catch (error) {
       setToastMessage("Gagal menyimpan transaksi! Silakan coba lagi.");
+      addNotification({
+        title: "Gagal Menyimpan Transaksi",
+        message: "Terjadi kesalahan saat menyimpan transaksi ke database.",
+        type: "warning"
+      });
     }
   };
 
@@ -119,7 +152,12 @@ export default function App() {
   }
 
   return (
-    <Layout activeTab={activeTab === "add_review" ? "scan" : activeTab} onTabChange={setActiveTab} onLogout={handleLogout}>
+    <Layout 
+      activeTab={activeTab === "add_review" ? "scan" : activeTab} 
+      onTabChange={setActiveTab} 
+      onLogout={handleLogout}
+      unreadNotificationsCount={unreadCount}
+    >
       <AnimatePresence mode="wait">
         <motion.div
           key={activeTab}
@@ -143,7 +181,7 @@ export default function App() {
           )}
 
           {activeTab === "scan" && (
-            <Scanner onScanSuccess={handleScanSuccess} />
+            <Scanner onScanSuccess={handleScanSuccess} addNotification={addNotification} />
           )}
 
           {activeTab === "add" && (
@@ -180,7 +218,12 @@ export default function App() {
           )}
 
           {activeTab === "notifications" && (
-            <Notifications />
+            <Notifications 
+              notifications={notifications}
+              unreadCount={unreadCount}
+              onMarkAsRead={markAsRead}
+              onMarkAllAsRead={markAllAsRead}
+            />
           )}
 
           {activeTab === "profile" && (

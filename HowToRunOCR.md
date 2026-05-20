@@ -1,5 +1,4 @@
-```python
-markdown_content = """# Panduan Langkah Menjalankan Aplikasi (Setup & Run Guide)
+"""# Panduan Langkah Menjalankan Aplikasi (Setup & Run Guide)
 
 Panduan ringkas ini hanya berisi instruksi setup terminal, unduhan yang diperlukan, dan tata cara menjalankan seluruh sistem (Python OCR, Database XAMPP, dan Node.js/Vite) tanpa menyertakan source code.
 

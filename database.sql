@@ -31,6 +31,7 @@ CREATE TABLE IF NOT EXISTS transactions (
     description TEXT,
     raw_text TEXT,
     store_name VARCHAR(255),
+    items TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
