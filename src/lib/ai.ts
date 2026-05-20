@@ -1,73 +1,42 @@
-import { GoogleGenAI, Type } from "@google/genai";
-
-export async function parseReceiptWithAI(base64Image: string, mimeType: string) {
+export async function parseReceiptWithAI(ocrRawText: string) {
   try {
-    const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-    
-    const response = await ai.models.generateContent({
-      model: "gemini-3.1-flash-preview",
-      contents: [
-        {
-          inlineData: {
-            data: base64Image,
-            mimeType: mimeType,
-          },
-        },
-        "Ekstrak data dari nota/struk ini ke dalam format JSON. Jika ini bukan struk atau tidak jelas, hasilkan field yang kosong atau null.",
-      ],
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            storeName: {
-              type: Type.STRING,
-              description: "Nama toko atau penjual jika ada.",
-            },
-            date: {
-              type: Type.STRING,
-              description: "Tanggal transaksi dalam format YYYY-MM-DD. Kosongkan jika tidak ada.",
-            },
-            totalAmount: {
-              type: Type.NUMBER,
-              description: "Total harga belanjaan secara keseluruhan (angka saja).",
-            },
-            items: {
-              type: Type.ARRAY,
-              items: {
-                type: Type.OBJECT,
-                properties: {
-                  name: {
-                    type: Type.STRING,
-                    description: "Nama barang atau jasa.",
-                  },
-                  qty: {
-                    type: Type.NUMBER,
-                    description: "Kuantitas atau jumlah barang. Jika tidak spesifik, beri 1.",
-                  },
-                  price: {
-                    type: Type.NUMBER,
-                    description: "Harga total per baris item (subtotal barang tersebut).",
-                  }
-                },
-                required: ["name", "price"]
-              },
-              description: "Daftar barang belanja. Jika tidak terlihat rinci, cukup beri satu item mewakili nota.",
-            }
-          },
-          required: ["totalAmount"]
-        }
-      }
+    const apiKey = import.meta.env.VITE_DEEPSEEK_API_KEY;
+    if (!apiKey) throw new Error("API Key DeepSeek belum disetting di .env");
+
+    const systemPrompt = `Kamu adalah ekstraktor data JSON.
+    Tugas: Ubah teks OCR berantakan dari struk belanja ini menjadi format JSON.
+    Wajib format ini persis:
+    {
+      "storeName": "Nama toko",
+      "date": "YYYY-MM-DD",
+      "totalAmount": 0,
+      "items": [ { "name": "nama barang", "qty": 1, "price": 0 } ]
+    }`;
+
+    const response = await fetch("https://api.deepseek.com/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${apiKey}`
+      },
+      body: JSON.stringify({
+        model: "deepseek-chat", // Gunakan deepseek-chat yang murah dan super cepat
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: `Ekstrak teks ini:\n\n${ocrRawText}` }
+        ],
+        response_format: { type: "json_object" },
+        temperature: 0.1
+      })
     });
 
-    if (!response.text) {
-      throw new Error("Respon kosong");
-    }
+    if (!response.ok) throw new Error("Gagal menghubungi DeepSeek API");
 
-    const parsed = JSON.parse(response.text.trim());
-    return parsed;
+    const data = await response.json();
+    return JSON.parse(data.choices[0].message.content.trim());
+
   } catch (error) {
-    console.error("Gagal parsing nota dengan AI:", error);
+    console.error("AI Parsing Error:", error);
     throw error;
   }
 }

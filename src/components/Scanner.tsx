@@ -15,25 +15,50 @@ export function Scanner({ onScanSuccess }: ScannerProps) {
   const [isProcessing, setIsProcessing] = useState(false);
   const [useCamera, setUseCamera] = useState(false);
 
-  const processImage = async (base64Str: string, mimeType: string) => {
+const processImage = async (base64Str: string, mimeType: string) => {
     setIsProcessing(true);
     try {
-      // Prepare base64 string (remove data URL prefix if present)
       const base64Data = base64Str.split(",")[1] || base64Str;
-      const result = await parseReceiptWithAI(base64Data, mimeType);
       
+      // 1. KIRIM GAMBAR KE SERVER PADDLEOCR
+      const ocrResponse = await fetch("http://localhost:8000/scan-base64/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ image: base64Data })
+      });
+      
+      if (!ocrResponse.ok) throw new Error("Server OCR mati atau error");
+      const ocrData = await ocrResponse.json();
+      
+      // Gabungkan array teks menjadi satu paragraf panjang
+      const rawText = ocrData.data.join("\n"); 
+
+      // ==========================================
+      // BAGIAN TESTING OCR (TAMPILKAN KE LAYAR)
+      // ==========================================
+      console.log("====== HASIL BACAAN OCR MENTAH ======");
+      console.log(rawText);
+      console.log("=====================================");
+      
+      alert("Berhasil membaca gambar! Silakan cek hasil teksnya di tab Console (F12).");
+
+      // MATIKAN SEMENTARA PEMANGGILAN DEEPSEEK
+      // const result = await parseReceiptWithAI(rawText);
+      
+      // Masukkan data palsu (dummy) agar aplikasi bisa lanjut ke halaman form
       const parsedData: Partial<Transaction> = {
-        type: "expense", // Default receipts to expense
-        amount: result.totalAmount || 0,
-        date: result.date || new Date().toISOString().split("T")[0],
-        storeName: result.storeName || "",
-        description: `Belanja di ${result.storeName || "Toko"}`,
-        items: result.items || [],
+        type: "expense",
+        amount: 0, // Sengaja di-nol-kan
+        date: new Date().toISOString().split("T")[0],
+        storeName: "Test OCR Mode",
+        description: `Teks Terbaca: ${rawText.substring(0, 30)}...`,
+        items: [],
       };
       
       onScanSuccess(parsedData);
     } catch (error) {
-      alert("Gagal memproses gambar. Pastikan gambar jelas dan merupakan struk valid.");
+      console.error(error);
+      alert("Gagal memproses gambar. Pastikan server OCR Python menyala di port 8000.");
     } finally {
       setIsProcessing(false);
     }
