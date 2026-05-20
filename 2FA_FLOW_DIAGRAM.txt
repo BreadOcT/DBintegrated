@@ -1,0 +1,307 @@
+```
+╔════════════════════════════════════════════════════════════════════════════╗
+║                   SISTEM AUTENTIKASI 2 FAKTOR YANG DIPERBAIKI               ║
+║                                                                            ║
+║  DARI: Toggle on/off sederhana                                             ║
+║  KE:   Setup Wizard + Backup Codes + Management Panel                     ║
+╚════════════════════════════════════════════════════════════════════════════╝
+
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ ALUR AKTIVASI 2FA (FIRST TIME)                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+  Profile Page
+       │
+       ▼
+  ┌──────────────────────────────┐
+  │  "Aktifkan 2FA" Button       │
+  └──────────────────────────────┘
+       │
+       ▼
+  ┌──────────────────────────────────────────────────────────────┐
+  │  STEP 1: MENU                                                │
+  │  ┌──────────────────────────────────────────────────────┐   │
+  │  │  📋 Pilih Aksi:                                      │   │
+  │  │  • Informasi tentang 2FA                             │   │
+  │  │  • Benefit keamanan                                  │   │
+  │  │  • Lanjut ke setup                                   │   │
+  │  └──────────────────────────────────────────────────────┘   │
+  └──────────────────────────────────────────────────────────────┘
+       │
+       ▼
+  ┌──────────────────────────────────────────────────────────────┐
+  │  STEP 2: PILIH METODE                                        │
+  │  ┌──────────────────────────────────────────────────────┐   │
+  │  │  ○ Google Authenticator (TOTP)                       │   │
+  │  │  ○ Email OTP                                         │   │
+  │  │  ○ SMS OTP                                           │   │
+  │  │                                                      │   │
+  │  │  [Lanjutkan]  [Batal]                               │   │
+  │  └──────────────────────────────────────────────────────┘   │
+  └──────────────────────────────────────────────────────────────┘
+       │
+       ├─────────────────────┬─────────────────────┬──────────────┐
+       │                     │                     │              │
+    Auth          Email              SMS      Authenticator
+       │           │                 │              │
+       ▼           ▼                 ▼              ▼
+  Send OTP    Send OTP          Generate QR   
+    Email       Email              Code
+       │           │                 │              │
+       └─────────────────────┬─────────────────────┴──────────────┘
+                             │
+                             ▼
+  ┌──────────────────────────────────────────────────────────────┐
+  │  STEP 3: VERIFIKASI                                          │
+  │  ┌──────────────────────────────────────────────────────┐   │
+  │  │  🔐 Scan QR Code atau Masukkan Manual Key:          │   │
+  │  │  ┌──────────────────────────────────────────────┐   │   │
+  │  │  │                                              │   │   │
+  │  │  │          ███████████████████                │   │   │
+  │  │  │          ██ Authenticator ██                │   │   │
+  │  │  │          ███████████████████                │   │   │
+  │  │  │                                              │   │   │
+  │  │  └──────────────────────────────────────────────┘   │   │
+  │  │                                                      │   │
+  │  │  Manual Key: [JBSWY3DPEBLW64TG]  [Copy]            │   │
+  │  │                                                      │   │
+  │  │  Masukkan Kode 6 Digit: [000000]                   │   │
+  │  │                                                      │   │
+  │  │  [Verifikasi] [Kembali]                            │   │
+  │  └──────────────────────────────────────────────────────┘   │
+  └──────────────────────────────────────────────────────────────┘
+       │
+       ▼
+  ┌──────────────────────────────────────────────────────────────┐
+  │  STEP 4: BACKUP CODES                                        │
+  │  ┌──────────────────────────────────────────────────────┐   │
+  │  │  ✅ 2FA Berhasil Diaktifkan!                        │   │
+  │  │                                                      │   │
+  │  │  ⚠️  SIMPAN BACKUP CODES INI:                       │   │
+  │  │  ┌──────────────────────────────────────────────┐   │   │
+  │  │  │  ✓ ABCD1234  ✓ EFGH5678                     │   │   │
+  │  │  │  ✓ IJKL9012  ✓ MNOP3456                     │   │   │
+  │  │  │  ✓ QRST7890  ✓ UVWX1234                     │   │   │
+  │  │  │  ✓ XYZA5678  ✓ BCDE9012                     │   │   │
+  │  │  └──────────────────────────────────────────────┘   │   │
+  │  │                                                      │   │
+  │  │  [Download]  [Tutup]                               │   │
+  │  └──────────────────────────────────────────────────────┘   │
+  └──────────────────────────────────────────────────────────────┘
+       │
+       ▼
+    ✅ SELESAI
+
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ ALUR MANAGEMENT 2FA (SUDAH AKTIF)                                           │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+  Profile Page
+       │
+       ▼
+  ┌──────────────────────────────┐
+  │  "Kelola 2FA" Button         │
+  └──────────────────────────────┘
+       │
+       ▼
+  ┌──────────────────────────────────────────────────────────────┐
+  │  MANAGEMENT PANEL                                            │
+  │  ┌──────────────────────────────────────────────────────┐   │
+  │  │  ✅ 2FA Aktif                                        │   │
+  │  │                                                      │   │
+  │  │  Metode Aktif: Google Authenticator                 │   │
+  │  │  Diaktifkan: 2 bulan lalu                           │   │
+  │  │                                                      │   │
+  │  │  [Nonaktifkan 2FA]  [Tutup]                         │   │
+  │  └──────────────────────────────────────────────────────┘   │
+  └──────────────────────────────────────────────────────────────┘
+       │
+       ├─── Nonaktifkan ───►  Verifikasi Password ──►  ✅ Nonaktif
+       │
+       └─── Tutup ──────────► Kembali ke Profile
+
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ PERBANDINGAN: BEFORE vs AFTER                                               │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+❌ SEBELUMNYA:
+   Profile Page
+        │
+        ▼
+   [Aktifkan] / [Matikan]
+   (hanya toggle, tidak ada setup wizard)
+
+
+✅ SESUDAHNYA:
+   Profile Page
+        │
+        ▼
+   [Aktifkan 2FA]  or  [Kelola 2FA]
+        │                    │
+        ▼                    ▼
+   Setup Wizard         Management Panel
+   - Menu                - View Status
+   - Pilih Metode      - Download Backup Codes
+   - Generate QR/OTP   - Nonaktifkan (dengan verifikasi)
+   - Verifikasi Kode
+   - Backup Codes
+
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ STRUKTUR DATABASE                                                            │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────┐
+│  TABLE: two_factor_auth             │
+├─────────────────────────────────────┤
+│ user_id         │ CHAR(36) PRIMARY  │
+│ method          │ VARCHAR(50)       │
+│ secret          │ VARCHAR(255)      │
+│ backup_codes    │ TEXT              │
+│ enabled         │ BOOLEAN           │
+│ created_at      │ TIMESTAMP         │
+└─────────────────────────────────────┘
+         │
+         ├─► FOREIGN KEY: users(id)
+
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ API ENDPOINTS                                                                │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+POST /api/auth/2fa/generate
+  Input:  { method: 'authenticator' | 'email' | 'sms' }
+  Output: { qrCode, secret, message } atau { message, method }
+  Auth:   Token Required
+
+POST /api/auth/2fa/verify-setup
+  Input:  { code: string, method: string }
+  Output: { message, backupCodes: string[] }
+  Auth:   Token Required
+
+POST /api/auth/2fa/disable
+  Input:  { password: string }
+  Output: { message }
+  Auth:   Token Required
+
+POST /api/auth/2fa/status
+  Input:  { enabled: boolean }
+  Output: { message }
+  Auth:   Token Required
+
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ KOMPONEN REACT                                                               │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+TwoFactorAuth.tsx
+  │
+  ├─ State:
+  │  ├─ step: 'menu' | 'setup' | 'verifySetup' | 'backupCodes' | etc
+  │  ├─ selectedMethod: 'authenticator' | 'email' | 'sms'
+  │  ├─ qrCode: string
+  │  ├─ verificationCode: string
+  │  ├─ backupCodes: string[]
+  │  └─ loading: boolean
+  │
+  ├─ Methods:
+  │  ├─ generateQRCode()      ─► POST /api/auth/2fa/generate
+  │  ├─ verifyAndEnable2FA()  ─► POST /api/auth/2fa/verify-setup
+  │  ├─ disable2FA()          ─► POST /api/auth/2fa/disable
+  │  ├─ copyToClipboard()
+  │  └─ downloadBackupCodes()
+  │
+  └─ UI Steps:
+     ├─ Menu
+     ├─ Setup (Pilih Metode)
+     ├─ VerifySetup (Input Kode)
+     ├─ BackupCodes (Download)
+     ├─ ManageMethods
+     └─ Disable
+
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ FLOW LOGIN DENGAN 2FA (FUTURE)                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+Login Form
+    │
+    ├─ Email ────────► Validate Email
+    │                     │
+    │                     ▼
+    └─ Password ──► Validate Password
+                      │
+                      ▼
+                  2FA Aktif?
+                  /        \
+                YES         NO
+                 │          │
+                 ▼          ▼
+            Prompt 2FA    Grant Access
+            (OTP/TOTP)    (Set Token)
+             │
+             ├─ Input Kode
+             │   │
+             │   ▼
+             ├─ Validate
+             │   /    \
+             │  OK    FAIL
+             │  │      │
+             │  ▼      ▼
+             ├─ Grant  Retry/Block
+             │ Access
+
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ SECURITY LAYERS                                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+Layer 1: Password Auth
+   └─► Verifikasi email & password
+
+Layer 2: 2FA Verification
+   ├─► TOTP (Time-based OTP) dari Authenticator
+   ├─► Email OTP
+   └─► SMS OTP
+
+Layer 3: Backup Codes
+   └─► Emergency access jika metode utama hilang
+
+Layer 4: Disable Protection
+   └─► Require password untuk nonaktifkan 2FA
+
+Layer 5: Audit Log (Future)
+   └─► Track semua aktivitas 2FA
+
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ PACKAGES & DEPENDENCIES                                                      │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+NEW:
+  ├─ otplib (v12.0.1)      - TOTP/HOTP generation
+  └─ qrcode (v1.5.3)       - QR Code generation
+
+EXISTING:
+  ├─ jsonwebtoken          - JWT handling
+  ├─ bcryptjs              - Password hashing
+  ├─ nodemailer            - Email sending
+  └─ react lucide-react    - UI components
+
+```
+
+**Diagram Legenda:**
+- ✅ = Success/Completed
+- ❌ = Deprecated/Before
+- ⚠️ = Warning/Important
+- 🔐 = Security
+- 📋 = Information
+- ✓ = Checkbox/Valid
+- │ = Vertical line (flow)
+- ▼ = Down arrow (next step)
+- ─► = Horizontal flow
+- ○ = Radio button
+- [ ] = Button/Action

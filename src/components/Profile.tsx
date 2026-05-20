@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { User, Mail, Shield, Smartphone, Bell, Key, LogOut, Check, Camera as CameraIcon } from 'lucide-react';
 import { Modal } from './ui/Modal';
 import { useAuth } from '../hooks/useAuth';
+import { TwoFactorAuth } from './TwoFactorAuth';
 
 interface ProfileProps {
   onLogout?: () => void;
@@ -11,7 +12,7 @@ export function Profile({ onLogout }: ProfileProps) {
   const { user, updateProfile } = useAuth();
 
   // Modal states
-  const [activeModal, setActiveModal] = useState<'none' | 'editProfile' | 'editPassword' | 'devices'>('none');
+  const [activeModal, setActiveModal] = useState<'none' | 'editProfile' | 'editPassword' | 'devices' | '2fa'>('none');
   
   // Profile data state
   const [profileName, setProfileName] = useState('');
@@ -98,6 +99,25 @@ export function Profile({ onLogout }: ProfileProps) {
     }
   };
 
+  const handleToggle2FA = async (enabled: boolean, method?: string) => {
+    try {
+      const res = await fetch('/api/auth/2fa/status', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ enabled, method })
+      });
+
+      if (res.ok) {
+        setIs2FAEnabled(enabled);
+      }
+    } catch (error) {
+      console.error('Error updating 2FA status:', error);
+    }
+  };
+
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -166,8 +186,8 @@ export function Profile({ onLogout }: ProfileProps) {
               <p className="font-bold text-sm text-text-main">Autentikasi 2 Faktor</p>
               <p className="text-xs text-text-muted mt-0.5">{is2FAEnabled ? 'Sudah aktif' : 'Tidak aktif'}</p>
             </div>
-            <button onClick={() => setIs2FAEnabled(!is2FAEnabled)} className={`${is2FAEnabled ? 'text-red-500' : 'text-nature-green'} font-bold text-xs hover:underline`}>
-              {is2FAEnabled ? 'Matikan' : 'Aktifkan'}
+            <button onClick={() => setActiveModal('2fa')} className={`${is2FAEnabled ? 'text-red-500' : 'text-nature-green'} font-bold text-xs hover:underline`}>
+              {is2FAEnabled ? 'Kelola' : 'Aktifkan'}
             </button>
           </div>
           <div className="flex items-center justify-between py-2">
@@ -334,6 +354,13 @@ export function Profile({ onLogout }: ProfileProps) {
           </div>
         </div>
       </Modal>
+
+      <TwoFactorAuth 
+        isOpen={activeModal === '2fa'} 
+        onClose={() => setActiveModal('none')} 
+        is2FAEnabled={is2FAEnabled}
+        onToggle2FA={handleToggle2FA}
+      />
     </div>
   );
 }
