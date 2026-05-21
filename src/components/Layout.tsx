@@ -24,9 +24,10 @@ interface LayoutProps {
   activeTab: string;
   onTabChange: (tab: string) => void;
   onLogout?: () => void;
+  unreadNotificationsCount?: number;
 }
 
-export function Layout({ children, activeTab, onTabChange, onLogout }: LayoutProps) {
+export function Layout({ children, activeTab, onTabChange, onLogout, unreadNotificationsCount = 0 }: LayoutProps) {
   const { user } = useAuth();
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -204,7 +205,11 @@ export function Layout({ children, activeTab, onTabChange, onLogout }: LayoutPro
                 className="relative p-2.5 text-text-main bg-white dark:bg-bg-card rounded-full shadow-sm border border-sand hover:bg-clay hover:text-white transition-all active:scale-95 focus:outline-none focus:ring-2 focus:ring-clay/50"
               >
                 <Bell className="h-5 w-5" />
-                <span className="absolute top-2 right-2.5 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white dark:border-bg-card"></span>
+                {unreadNotificationsCount > 0 && (
+                  <span className="absolute -top-1 -right-1 min-w-[20px] h-5 px-1 bg-red-500 text-white text-[10px] font-black rounded-full flex items-center justify-center border-2 border-white dark:border-bg-card animate-pulse shadow-sm">
+                    {unreadNotificationsCount}
+                  </span>
+                )}
               </button>
             </div>
           </div>

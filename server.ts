@@ -29,7 +29,7 @@ if (process.env.DB_HOST && process.env.DB_USER && process.env.DB_NAME) {
       queueLimit: 0
     });
     console.log("MySQL connection pool created successfully!");
-    
+
     // Auto-migrate tables
     (async () => {
       try {
@@ -48,12 +48,12 @@ if (process.env.DB_HOST && process.env.DB_USER && process.env.DB_NAME) {
           )
         `);
         // Add columns if they don't exist (for existing tables)
-        try { await dbPool.execute(`ALTER TABLE users ADD COLUMN phone VARCHAR(50)`); } catch (e) {}
-        try { await dbPool.execute(`ALTER TABLE users ADD COLUMN photo LONGTEXT`); } catch (e) {}
-        try { await dbPool.execute(`ALTER TABLE users ADD COLUMN weekly_report BOOLEAN DEFAULT TRUE`); } catch (e) {}
-        try { await dbPool.execute(`ALTER TABLE users ADD COLUMN bill_reminder BOOLEAN DEFAULT TRUE`); } catch (e) {}
-        try { await dbPool.execute(`ALTER TABLE users ADD COLUMN promo_offer BOOLEAN DEFAULT FALSE`); } catch (e) {}
-        
+        try { await dbPool.execute(`ALTER TABLE users ADD COLUMN phone VARCHAR(50)`); } catch (e) { }
+        try { await dbPool.execute(`ALTER TABLE users ADD COLUMN photo LONGTEXT`); } catch (e) { }
+        try { await dbPool.execute(`ALTER TABLE users ADD COLUMN weekly_report BOOLEAN DEFAULT TRUE`); } catch (e) { }
+        try { await dbPool.execute(`ALTER TABLE users ADD COLUMN bill_reminder BOOLEAN DEFAULT TRUE`); } catch (e) { }
+        try { await dbPool.execute(`ALTER TABLE users ADD COLUMN promo_offer BOOLEAN DEFAULT FALSE`); } catch (e) { }
+
         await dbPool.execute(`
           CREATE TABLE IF NOT EXISTS transactions (
             id CHAR(36) PRIMARY KEY,
@@ -68,9 +68,10 @@ if (process.env.DB_HOST && process.env.DB_USER && process.env.DB_NAME) {
             FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
           )
         `);
-        
-        try { await dbPool.execute(`ALTER TABLE transactions ADD COLUMN raw_text LONGTEXT`); } catch (e) {}
-        
+
+        try { await dbPool.execute(`ALTER TABLE transactions ADD COLUMN raw_text LONGTEXT`); } catch (e) { }
+        try { await dbPool.execute(`ALTER TABLE transactions ADD COLUMN items LONGTEXT`); } catch (e) { }
+
         await dbPool.execute(`
           CREATE TABLE IF NOT EXISTS monthly_budgets (
               user_id CHAR(36) NOT NULL,
@@ -82,7 +83,7 @@ if (process.env.DB_HOST && process.env.DB_USER && process.env.DB_NAME) {
               FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
           )
         `);
-        
+
         await dbPool.execute(`
           CREATE TABLE IF NOT EXISTS two_factor_auth (
               user_id CHAR(36) PRIMARY KEY,
@@ -127,7 +128,7 @@ async function startServer() {
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1];
     if (token == null) return res.sendStatus(401);
-    
+
     jwt.verify(token, JWT_SECRET, (err: any, user: any) => {
       if (err) return res.sendStatus(403);
       req.user = user;
@@ -166,7 +167,7 @@ async function startServer() {
         try {
           const userAgent = req.headers['user-agent'] || 'Unknown Device';
           let deviceName = 'Browser / PC';
-          
+
           if (/windows/i.test(userAgent)) deviceName = 'Windows PC';
           else if (/macintosh|mac os x/i.test(userAgent)) deviceName = 'MacBook / Mac';
           else if (/iphone/i.test(userAgent)) deviceName = 'iPhone';
@@ -182,9 +183,9 @@ async function startServer() {
           console.error("Gagal mencatat perangkat:", devErr);
         }
 
-        res.json({ 
-          token, 
-          user: { id: user.id, name: user.name, email: user.email, phone: user.phone } 
+        res.json({
+          token,
+          user: { id: user.id, name: user.name, email: user.email, phone: user.phone }
         });
       } else {
         if (email === "demo@example.com" && password === "demo") {
@@ -196,6 +197,48 @@ async function startServer() {
       }
     } catch (error) {
       console.error("Login Error:", error);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
+  app.post("/api/auth/register", async (req, res) => {
+    try {
+      const { email, password, name } = req.body;
+      if (!email || !password || !name) {
+        return res.status(400).json({ error: "Missing email, password, or name" });
+      }
+
+      const hashedPassword = await bcrypt.hash(password, 10);
+      const newUserId = crypto.randomUUID();
+
+      if (dbPool) {
+        // Check if user already exists
+        const [existing]: any = await dbPool.execute('SELECT * FROM users WHERE email = ?', [email]);
+        if (existing.length > 0) {
+          return res.status(400).json({ error: "Email sudah terdaftar" });
+        }
+
+        // Insert new user
+        await dbPool.execute(
+          'INSERT INTO users (id, email, password, name) VALUES (?, ?, ?, ?)',
+          [newUserId, email, hashedPassword, name]
+        );
+
+        const token = jwt.sign({ id: newUserId, email, name }, JWT_SECRET, { expiresIn: '7d' });
+        res.status(201).json({
+          token,
+          user: { id: newUserId, name, email }
+        });
+      } else {
+        // Mock register for UI testing when DB is not connected
+        const token = jwt.sign({ id: newUserId, email, name }, JWT_SECRET, { expiresIn: '7d' });
+        res.status(201).json({
+          token,
+          user: { id: newUserId, name, email }
+        });
+      }
+    } catch (error) {
+      console.error("Register Error:", error);
       res.status(500).json({ error: "Internal server error" });
     }
   });
@@ -244,12 +287,12 @@ async function startServer() {
 
         const user = rows[0];
         const resetToken = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, { expiresIn: '15m' });
-        
+
         const transporter = nodemailer.createTransport({
           service: 'gmail',
           auth: {
             user: 'admin.keuangankhb@gmail.com',
-            pass: process.env.EMAIL_APP_PASSWORD || '' 
+            pass: process.env.EMAIL_APP_PASSWORD || ''
           }
         });
 
@@ -291,7 +334,7 @@ async function startServer() {
 
       try {
         const decoded: any = jwt.verify(token, JWT_SECRET);
-        
+
         if (dbPool) {
           const hashedPassword = await bcrypt.hash(password, 10);
           await dbPool.execute('UPDATE users SET password = ? WHERE id = ?', [hashedPassword, decoded.id]);
@@ -310,73 +353,73 @@ async function startServer() {
 
   app.get("/api/auth/me", authenticateToken, async (req: any, res: any) => {
     if (dbPool) {
-        const [rows]: any = await dbPool.execute('SELECT id, name, email, phone, photo FROM users WHERE id = ?', [req.user.id]);
-        if (rows.length > 0) {
-            res.json(rows[0]);
-        } else {
-            res.status(404).json({ error: "User not found" });
-        }
+      const [rows]: any = await dbPool.execute('SELECT id, name, email, phone, photo FROM users WHERE id = ?', [req.user.id]);
+      if (rows.length > 0) {
+        res.json(rows[0]);
+      } else {
+        res.status(404).json({ error: "User not found" });
+      }
     } else {
-        res.json(req.user);
+      res.json(req.user);
     }
   });
 
   app.put("/api/auth/me", authenticateToken, async (req: any, res: any) => {
     if (dbPool) {
-       try {
-         const { name, phone, photo } = req.body;
-         await dbPool.execute('UPDATE users SET name = ?, phone = ?, photo = ? WHERE id = ?', [name, phone || null, photo || null, req.user.id]);
-         res.json({ message: "Profile updated successfully" });
-       } catch (error) {
-         console.error("Profile update error:", error);
-         res.status(500).json({ error: "Failed to update profile." });
-       }
+      try {
+        const { name, phone, photo } = req.body;
+        await dbPool.execute('UPDATE users SET name = ?, phone = ?, photo = ? WHERE id = ?', [name, phone || null, photo || null, req.user.id]);
+        res.json({ message: "Profile updated successfully" });
+      } catch (error) {
+        console.error("Profile update error:", error);
+        res.status(500).json({ error: "Failed to update profile." });
+      }
     } else {
-       res.status(501).json({ error: "Database not configured." });
+      res.status(501).json({ error: "Database not configured." });
     }
   });
 
   app.put("/api/auth/password", authenticateToken, async (req: any, res: any) => {
     if (dbPool) {
-       try {
-         const { oldPassword, newPassword } = req.body;
-         const [rows]: any = await dbPool.execute('SELECT password FROM users WHERE id = ?', [req.user.id]);
-         if (rows.length === 0) return res.status(404).json({ error: "User not found" });
+      try {
+        const { oldPassword, newPassword } = req.body;
+        const [rows]: any = await dbPool.execute('SELECT password FROM users WHERE id = ?', [req.user.id]);
+        if (rows.length === 0) return res.status(404).json({ error: "User not found" });
 
-         const user = rows[0];
-         const validPassword = await bcrypt.compare(oldPassword, user.password);
-         if (!validPassword) {
-           return res.status(400).json({ error: "Pastikan password lama anda tepat" });
-         }
+        const user = rows[0];
+        const validPassword = await bcrypt.compare(oldPassword, user.password);
+        if (!validPassword) {
+          return res.status(400).json({ error: "Pastikan password lama anda tepat" });
+        }
 
-         const hashedPassword = await bcrypt.hash(newPassword, 10);
-         await dbPool.execute('UPDATE users SET password = ? WHERE id = ?', [hashedPassword, req.user.id]);
-         
-         res.json({ message: "Password updated successfully" });
-       } catch (error) {
-         console.error("Password update error:", error);
-         res.status(500).json({ error: "Failed to update password" });
-       }
+        const hashedPassword = await bcrypt.hash(newPassword, 10);
+        await dbPool.execute('UPDATE users SET password = ? WHERE id = ?', [hashedPassword, req.user.id]);
+
+        res.json({ message: "Password updated successfully" });
+      } catch (error) {
+        console.error("Password update error:", error);
+        res.status(500).json({ error: "Failed to update password" });
+      }
     } else {
-       res.status(501).json({ error: "Database not configured." });
+      res.status(501).json({ error: "Database not configured." });
     }
   });
 
   app.put("/api/auth/notifications", authenticateToken, async (req: any, res: any) => {
     if (dbPool) {
-       try {
-         const { weekly_report, bill_reminder, promo_offer } = req.body;
-         await dbPool.execute(
-           'UPDATE users SET weekly_report = ?, bill_reminder = ?, promo_offer = ? WHERE id = ?', 
-           [weekly_report, bill_reminder, promo_offer, req.user.id]
-         );
-         res.json({ message: "Pengaturan notifikasi berhasil disimpan" });
-       } catch (error) {
-         console.error("Gagal simpan notifikasi:", error);
-         res.status(500).json({ error: "Gagal mengupdate pengaturan notifikasi" });
-       }
+      try {
+        const { weekly_report, bill_reminder, promo_offer } = req.body;
+        await dbPool.execute(
+          'UPDATE users SET weekly_report = ?, bill_reminder = ?, promo_offer = ? WHERE id = ?',
+          [weekly_report, bill_reminder, promo_offer, req.user.id]
+        );
+        res.json({ message: "Pengaturan notifikasi berhasil disimpan" });
+      } catch (error) {
+        console.error("Gagal simpan notifikasi:", error);
+        res.status(500).json({ error: "Gagal mengupdate pengaturan notifikasi" });
+      }
     } else {
-       res.status(501).json({ error: "Database belum dikonfigurasi" });
+      res.status(501).json({ error: "Database belum dikonfigurasi" });
     }
   });
 
@@ -384,20 +427,20 @@ async function startServer() {
   app.post("/api/auth/2fa/generate", authenticateToken, async (req: any, res: any) => {
     try {
       const { method } = req.body;
-      
+
       if (method === 'authenticator') {
         const secret = authenticator.generateSecret();
         const otpauth_url = authenticator.keyuri(req.user.email, 'Catatan Keuangan KHB', secret);
         const qrCode = await QRCode.toDataURL(otpauth_url);
-        
-        res.json({ 
-          qrCode, 
+
+        res.json({
+          qrCode,
           secret,
           message: "Scan QR Code dengan aplikasi Authenticator"
         });
       } else if (method === 'email' || method === 'sms') {
         const otp = Math.floor(100000 + Math.random() * 900000).toString();
-        
+
         if (method === 'email') {
           const transporter = nodemailer.createTransport({
             service: 'gmail',
@@ -424,7 +467,7 @@ async function startServer() {
             `
           });
         }
-        
+
         res.json({ message: "Kode verifikasi telah dikirim", method });
       }
     } catch (error) {
@@ -436,7 +479,7 @@ async function startServer() {
   app.post("/api/auth/2fa/verify-setup", authenticateToken, async (req: any, res: any) => {
     try {
       const { code, method, secret } = req.body;
-      
+
       if (!code || !method) {
         return res.status(400).json({ error: "Kode dan metode diperlukan" });
       }
@@ -446,7 +489,7 @@ async function startServer() {
 
       if (method === 'authenticator') {
         if (!secret) return res.status(400).json({ error: "Secret diperlukan untuk verifikasi" });
-        
+
         const isValid = authenticator.check(code, secret);
         if (!isValid) return res.status(400).json({ error: "Kode OTP tidak valid" });
 
@@ -521,17 +564,17 @@ async function startServer() {
         const { year } = req.query;
         let query = 'SELECT * FROM monthly_budgets WHERE user_id = ?';
         let params: any[] = [req.user.id];
-        
+
         if (year) {
           query += ' AND year = ?';
           params.push(parseInt(year));
         }
-        
+
         const [rows] = await dbPool.execute(query, params);
         res.json(rows);
       } catch (error) {
-         console.error("Budgets Fetch Error:", error);
-         res.status(500).json({ error: "Failed to fetch budgets" });
+        console.error("Budgets Fetch Error:", error);
+        res.status(500).json({ error: "Failed to fetch budgets" });
       }
     } else {
       res.json([]);
@@ -547,15 +590,15 @@ async function startServer() {
           [req.user.id, month, year]
         );
         if (rows.length > 0) {
-           await dbPool.execute(
-             'UPDATE monthly_budgets SET income_target = ?, expense_target = ? WHERE user_id = ? AND month = ? AND year = ?',
-             [income_target, expense_target, req.user.id, month, year]
-           );
+          await dbPool.execute(
+            'UPDATE monthly_budgets SET income_target = ?, expense_target = ? WHERE user_id = ? AND month = ? AND year = ?',
+            [income_target, expense_target, req.user.id, month, year]
+          );
         } else {
-           await dbPool.execute(
-             'INSERT INTO monthly_budgets (user_id, month, year, income_target, expense_target) VALUES (?, ?, ?, ?, ?)',
-             [req.user.id, month, year, income_target, expense_target]
-           );
+          await dbPool.execute(
+            'INSERT INTO monthly_budgets (user_id, month, year, income_target, expense_target) VALUES (?, ?, ?, ?, ?)',
+            [req.user.id, month, year, income_target, expense_target]
+          );
         }
         res.json({ message: "Budget updated" });
       } catch (error) {
@@ -563,7 +606,7 @@ async function startServer() {
         res.status(500).json({ error: "Failed to update budget" });
       }
     } else {
-        res.status(501).json({ error: "Database not configured." });
+      res.status(501).json({ error: "Database not configured." });
     }
   });
 
@@ -571,8 +614,29 @@ async function startServer() {
   app.get("/api/transactions", authenticateToken, async (req: any, res: any) => {
     if (dbPool) {
       try {
-        const [rows] = await dbPool.execute('SELECT * FROM transactions WHERE user_id = ? ORDER BY date DESC', [req.user.id]);
-        res.json(rows);
+        const [rows]: any = await dbPool.execute('SELECT * FROM transactions WHERE user_id = ? ORDER BY date DESC', [req.user.id]);
+        const mappedRows = rows.map((r: any) => {
+          let itemsParsed = [];
+          if (r.items) {
+            try {
+              itemsParsed = typeof r.items === 'string' ? JSON.parse(r.items) : r.items;
+            } catch (e) {
+              itemsParsed = [];
+            }
+          }
+          return {
+            id: r.id,
+            type: r.type,
+            category: r.category,
+            amount: Number(r.amount),
+            date: r.date,
+            description: r.description,
+            rawText: r.raw_text,
+            storeName: r.store_name,
+            items: itemsParsed
+          };
+        });
+        res.json(mappedRows);
       } catch (error) {
         console.error("Transactions Fetch Error:", error);
         res.status(500).json({ error: "Failed to fetch transactions" });
@@ -585,11 +649,12 @@ async function startServer() {
   app.post("/api/transactions", authenticateToken, async (req: any, res: any) => {
     if (dbPool) {
       try {
-        const { id, type, category, amount, date, description, rawText, storeName } = req.body;
+        const { id, type, category, amount, date, description, rawText, storeName, items } = req.body;
         const newId = id || crypto.randomUUID();
+        const itemsStr = items ? JSON.stringify(items) : null;
         await dbPool.execute(
-          'INSERT INTO transactions (id, user_id, type, category, amount, date, description, raw_text, store_name) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-          [newId, req.user.id, type, category, amount, date, description || null, rawText || null, storeName || null]
+          'INSERT INTO transactions (id, user_id, type, category, amount, date, description, raw_text, store_name, items) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+          [newId, req.user.id, type, category, amount, date, description || null, rawText || null, storeName || null, itemsStr]
         );
         res.status(201).json({ message: "Transaction created", id: newId });
       } catch (error) {
@@ -597,20 +662,21 @@ async function startServer() {
         res.status(500).json({ error: "Failed to create transaction" });
       }
     } else {
-        res.status(501).json({ error: "Database not configured." });
+      res.status(501).json({ error: "Database not configured." });
     }
   });
 
   app.put("/api/transactions/:id", authenticateToken, async (req: any, res: any) => {
     if (dbPool) {
       try {
-        const { type, category, amount, date, description, rawText, storeName } = req.body;
+        const { type, category, amount, date, description, rawText, storeName, items } = req.body;
+        const itemsStr = items ? JSON.stringify(items) : null;
         const [result]: any = await dbPool.execute(
-          'UPDATE transactions SET type=?, category=?, amount=?, date=?, description=?, raw_text=?, store_name=? WHERE id=? AND user_id=?',
-          [type, category, amount, date, description || null, rawText || null, storeName || null, req.params.id, req.user.id]
+          'UPDATE transactions SET type=?, category=?, amount=?, date=?, description=?, raw_text=?, store_name=?, items=? WHERE id=? AND user_id=?',
+          [type, category, amount, date, description || null, rawText || null, storeName || null, itemsStr, req.params.id, req.user.id]
         );
         if (result.affectedRows === 0) {
-            return res.status(404).json({ error: "Transaction not found or unauthorized" });
+          return res.status(404).json({ error: "Transaction not found or unauthorized" });
         }
         res.json({ message: "Transaction updated" });
       } catch (error) {
@@ -618,7 +684,7 @@ async function startServer() {
         res.status(500).json({ error: "Failed to update transaction" });
       }
     } else {
-        res.status(501).json({ error: "Database not configured." });
+      res.status(501).json({ error: "Database not configured." });
     }
   });
 
@@ -630,7 +696,7 @@ async function startServer() {
           [req.params.id, req.user.id]
         );
         if (result.affectedRows === 0) {
-            return res.status(404).json({ error: "Transaction not found or unauthorized" });
+          return res.status(404).json({ error: "Transaction not found or unauthorized" });
         }
         res.json({ message: "Transaction deleted" });
       } catch (error) {
@@ -638,125 +704,125 @@ async function startServer() {
         res.status(500).json({ error: "Failed to delete transaction" });
       }
     } else {
-        res.status(501).json({ error: "Database not configured." });
+      res.status(501).json({ error: "Database not configured." });
     }
   });
 
 
   app.post("/api/transactions/export", authenticateToken, async (req: any, res: any) => {
-  try {
-    const { format, email } = req.body;
-    if (!dbPool) return res.status(501).json({ error: "Database tidak tersedia" });
+    try {
+      const { format, email } = req.body;
+      if (!dbPool) return res.status(501).json({ error: "Database tidak tersedia" });
 
-    // Mengambil data transaksi diurutkan dari yang terbaru
-    const [rows]: any = await dbPool.execute(
-      'SELECT description, amount, type, category, date FROM transactions WHERE user_id = ? ORDER BY date DESC', 
-      [req.user.id]
-    );
+      // Mengambil data transaksi diurutkan dari yang terbaru
+      const [rows]: any = await dbPool.execute(
+        'SELECT description, amount, type, category, date FROM transactions WHERE user_id = ? ORDER BY date DESC',
+        [req.user.id]
+      );
 
-    if (rows.length === 0) return res.status(404).json({ error: "Tidak ada data transaksi" });
+      if (rows.length === 0) return res.status(404).json({ error: "Tidak ada data transaksi" });
 
-    const transporter = nodemailer.createTransport({
-      service: 'gmail',
-      auth: {
-        user: 'admin.keuangankhb@gmail.com',
-        pass: process.env.EMAIL_APP_PASSWORD || ''
+      const transporter = nodemailer.createTransport({
+        service: 'gmail',
+        auth: {
+          user: 'admin.keuangankhb@gmail.com',
+          pass: process.env.EMAIL_APP_PASSWORD || ''
+        }
+      });
+
+      let attachmentContent: any;
+
+      // KONDISI 1: JIKA FORMAT CSV
+      if (format === 'csv') {
+        attachmentContent = "Deskripsi,Jumlah,Tipe,Kategori,Tanggal\n" +
+          rows.map((r: any) => {
+            const dateStr = r.date instanceof Date ? r.date.toISOString().split('T')[0] : String(r.date).split('T')[0];
+            return `"${r.description || ''}",${r.amount},${r.type},${r.category},"${dateStr}"`;
+          }).join("\n");
       }
-    });
+      // KONDISI 2: JIKA FORMAT PDF
+      else if (format === 'pdf') {
+        // Inisialisasi dokumen menggunakan import ES Module dari atas
+        const doc = new PDFDocument({ margin: 40 });
+        const buffers: Buffer[] = [];
 
-    let attachmentContent: any;
+        // Bungkus proses stream ke dalam Promise agar data PDF selesai di-generate seutuhnya
+        await new Promise<void>((resolve, reject) => {
+          doc.on('data', (chunk: Buffer) => buffers.push(chunk));
+          doc.on('end', () => resolve());
+          doc.on('error', (err: any) => reject(err));
 
-    // KONDISI 1: JIKA FORMAT CSV
-    if (format === 'csv') {
-      attachmentContent = "Deskripsi,Jumlah,Tipe,Kategori,Tanggal\n" + 
-        rows.map((r: any) => {
-          const dateStr = r.date instanceof Date ? r.date.toISOString().split('T')[0] : String(r.date).split('T')[0];
-          return `"${r.description || ''}",${r.amount},${r.type},${r.category},"${dateStr}"`;
-        }).join("\n");
-    } 
-    // KONDISI 2: JIKA FORMAT PDF
-    else if (format === 'pdf') {
-      // Inisialisasi dokumen menggunakan import ES Module dari atas
-      const doc = new PDFDocument({ margin: 40 });
-      const buffers: Buffer[] = [];
-      
-      // Bungkus proses stream ke dalam Promise agar data PDF selesai di-generate seutuhnya
-      await new Promise<void>((resolve, reject) => {
-        doc.on('data', (chunk: Buffer) => buffers.push(chunk));
-        doc.on('end', () => resolve());
-        doc.on('error', (err: any) => reject(err));
+          // Judul Laporan
+          doc.fontSize(18).font('Helvetica-Bold').text('LAPORAN TRANSAKSI KEUANGAN', { align: 'center' });
+          doc.fontSize(11).font('Helvetica').text('Komunitas Halal Bandung (KHB)', { align: 'center' });
+          doc.moveDown(2);
 
-        // Judul Laporan
-        doc.fontSize(18).font('Helvetica-Bold').text('LAPORAN TRANSAKSI KEUANGAN', { align: 'center' });
-        doc.fontSize(11).font('Helvetica').text('Komunitas Halal Bandung (KHB)', { align: 'center' });
-        doc.moveDown(2);
+          // Header Tabel PDF
+          const startY = doc.y;
+          doc.fontSize(10).font('Helvetica-Bold');
+          doc.text('No', 40, startY, { width: 30 });
+          doc.text('Tanggal', 70, startY, { width: 75 });
+          doc.text('Kategori', 145, startY, { width: 85 });
+          doc.text('Tipe', 230, startY, { width: 75 });
+          doc.text('Jumlah (Rp)', 305, startY, { width: 85 });
+          doc.text('Deskripsi', 390, startY, { width: 165 });
 
-        // Header Tabel PDF
-        const startY = doc.y;
-        doc.fontSize(10).font('Helvetica-Bold');
-        doc.text('No', 40, startY, { width: 30 });
-        doc.text('Tanggal', 70, startY, { width: 75 });
-        doc.text('Kategori', 145, startY, { width: 85 });
-        doc.text('Tipe', 230, startY, { width: 75 });
-        doc.text('Jumlah (Rp)', 305, startY, { width: 85 });
-        doc.text('Deskripsi', 390, startY, { width: 165 });
-        
-        doc.moveDown(0.3);
-        doc.text('------------------------------------------------------------------------------------------------------------------------');
-        doc.moveDown(0.5);
+          doc.moveDown(0.3);
+          doc.text('------------------------------------------------------------------------------------------------------------------------');
+          doc.moveDown(0.5);
 
-        // Isi Data Tabel PDF
-        doc.font('Helvetica');
-        rows.forEach((r: any, i: number) => {
-          const currentY = doc.y;
-          
-          // Penanganan Format Tanggal yang Aman
-          let formattedDate = '-';
-          if (r.date) {
-            formattedDate = r.date instanceof Date 
-              ? r.date.toISOString().split('T')[0] 
-              : String(r.date).split('T')[0];
-          }
+          // Isi Data Tabel PDF
+          doc.font('Helvetica');
+          rows.forEach((r: any, i: number) => {
+            const currentY = doc.y;
 
-          const formattedAmount = Number(r.amount || 0).toLocaleString('id-ID');
-          const displayType = r.type === 'income' ? 'Pemasukan' : 'Pengeluaran';
+            // Penanganan Format Tanggal yang Aman
+            let formattedDate = '-';
+            if (r.date) {
+              formattedDate = r.date instanceof Date
+                ? r.date.toISOString().split('T')[0]
+                : String(r.date).split('T')[0];
+            }
 
-          doc.text(`${i + 1}`, 40, currentY, { width: 30 });
-          doc.text(formattedDate, 70, currentY, { width: 75 });
-          doc.text(r.category || '-', 145, currentY, { width: 85 });
-          doc.text(displayType, 230, currentY, { width: 75 });
-          doc.text(formattedAmount, 305, currentY, { width: 85 });
-          doc.text(r.description || '-', 390, currentY, { width: 165 });
-          
-          doc.moveDown(0.8);
+            const formattedAmount = Number(r.amount || 0).toLocaleString('id-ID');
+            const displayType = r.type === 'income' ? 'Pemasukan' : 'Pengeluaran';
+
+            doc.text(`${i + 1}`, 40, currentY, { width: 30 });
+            doc.text(formattedDate, 70, currentY, { width: 75 });
+            doc.text(r.category || '-', 145, currentY, { width: 85 });
+            doc.text(displayType, 230, currentY, { width: 75 });
+            doc.text(formattedAmount, 305, currentY, { width: 85 });
+            doc.text(r.description || '-', 390, currentY, { width: 165 });
+
+            doc.moveDown(0.8);
+          });
+
+          // Akhiri aliran pembuatan dokumen
+          doc.end();
         });
 
-        // Akhiri aliran pembuatan dokumen
-        doc.end();
+        // Satukan seluruh potongan chunk menjadi satu buffer tunggal
+        attachmentContent = Buffer.concat(buffers);
+      } else {
+        return res.status(400).json({ error: "Format tidak didukung" });
+      }
+
+      // Kirim Email dengan attachment yang sesuai
+      await transporter.sendMail({
+        from: '"Catatan Keuangan KHB" <admin.keuangankhb@gmail.com>',
+        to: email,
+        subject: `Laporan Transaksi - ${format.toUpperCase()}`,
+        text: "Halo, Terlampir adalah laporan rekapan transaksi keuangan Anda sesuai dengan format yang diminta.",
+        attachments: [{ filename: `laporan.${format}`, content: attachmentContent }]
       });
-      
-      // Satukan seluruh potongan chunk menjadi satu buffer tunggal
-      attachmentContent = Buffer.concat(buffers);
-    } else {
-      return res.status(400).json({ error: "Format tidak didukung" });
+
+      res.json({ message: "Ekspor berhasil!" });
+    } catch (error) {
+      console.error("Export Error:", error);
+      res.status(500).json({ error: "Gagal memproses ekspor data" });
     }
+  });
 
-    // Kirim Email dengan attachment yang sesuai
-    await transporter.sendMail({
-      from: '"Catatan Keuangan KHB" <admin.keuangankhb@gmail.com>',
-      to: email,
-      subject: `Laporan Transaksi - ${format.toUpperCase()}`,
-      text: "Halo, Terlampir adalah laporan rekapan transaksi keuangan Anda sesuai dengan format yang diminta.",
-      attachments: [{ filename: `laporan.${format}`, content: attachmentContent }]
-    });
-
-    res.json({ message: "Ekspor berhasil!" });
-  } catch (error) {
-    console.error("Export Error:", error);
-    res.status(500).json({ error: "Gagal memproses ekspor data" });
-  }
-});
-  
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({

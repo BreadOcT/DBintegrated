@@ -2,51 +2,15 @@ import React from 'react';
 import { motion } from 'motion/react';
 import { Bell, CheckCircle2, AlertTriangle, Info, Clock, Check } from 'lucide-react';
 import { cn } from '../lib/utils';
+import { Notification } from '../hooks/useNotifications';
 
-export function Notifications() {
-  const [notifications, setNotifications] = React.useState([
-    {
-      id: 1,
-      title: 'Scan Struk Berhasil',
-      message: 'Transaksi "Belanja Bulanan" sebesar Rp 850.000 telah ditambahkan dengan kecerdasan buatan.',
-      time: '10 menit yang lalu',
-      type: 'success',
-      read: false,
-    },
-    {
-      id: 2,
-      title: 'Pengeluaran Kategori Makan',
-      message: 'Anda sudah menghabiskan 80% dari anggaran makan minggu ini.',
-      time: '2 jam yang lalu',
-      type: 'warning',
-      read: false,
-    },
-    {
-      id: 3,
-      title: 'Pembaruan Fitur',
-      message: 'Sistem deteksi nota kami sekarang mengenali font dari berbagai struk digital.',
-      time: '1 hari yang lalu',
-      type: 'info',
-      read: true,
-    },
-    {
-      id: 4,
-      title: 'Laporan Bulan Lalu Siap',
-      message: 'Laporan ringkasan pengeluaran bulan lalu sudah bisa Anda unduh.',
-      time: '3 hari yang lalu',
-      type: 'info',
-      read: true,
-    }
-  ]);
+interface NotificationsProps {
+  notifications: Notification[];
+  onMarkAsRead: (id: number) => void;
+  onMarkAllAsRead: () => void;
+}
 
-  const markAllAsRead = () => {
-    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
-  };
-
-  const markAsRead = (id: number) => {
-    setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
-  };
-
+export function Notifications({ notifications, onMarkAsRead, onMarkAllAsRead }: NotificationsProps) {
   const unreadCount = notifications.filter(n => !n.read).length;
 
   return (
@@ -65,14 +29,14 @@ export function Notifications() {
         </div>
         {unreadCount > 0 && (
           <button 
-            onClick={markAllAsRead}
+            onClick={onMarkAllAsRead}
             className="text-xs font-bold text-nature-green bg-nature-green/10 hover:bg-nature-green/20 px-3 py-1.5 rounded-full transition-colors flex items-center gap-1.5"
           >
             <Check className="w-3.5 h-3.5" /> Tandai Semua Dibaca
           </button>
         )}
       </div>
-
+ 
       <div className="bg-bg-base border border-sand rounded-3xl overflow-hidden shadow-sm">
         {notifications.length > 0 ? (
           <div className="divide-y divide-sand/50">
@@ -86,7 +50,7 @@ export function Notifications() {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.05 }}
                   key={notification.id}
-                  onClick={() => markAsRead(notification.id)}
+                  onClick={() => onMarkAsRead(notification.id)}
                   className={cn(
                     "p-5 md:p-6 transition-all cursor-pointer relative group",
                     notification.read 

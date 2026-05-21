@@ -201,7 +201,7 @@ export function Dashboard({
               <p className="text-sm font-medium text-white/90 mb-1 tracking-wide uppercase text-[11px] font-bold">
                 Total Saldo Saat Ini
               </p>
-              <h3 className={`text-5xl sm:text-6xl md:text-5xl font-black font-sans tracking-tight mb-6 drop-shadow-md truncate ${totalProfit < 0 ? 'text-red-400' : 'text-white'}`} title={formatCurrency(totalProfit)}>
+              <h3 className={`text-3xl sm:text-5xl md:text-6xl font-black font-sans tracking-tight mb-6 drop-shadow-md break-all leading-tight ${totalProfit < 0 ? 'text-red-400' : 'text-white'}`} title={formatCurrency(totalProfit)}>
                 {formatCurrency(totalProfit)}
               </h3>
               
@@ -213,14 +213,14 @@ export function Dashboard({
                     <span className="text-[10px] uppercase tracking-wider">Pemasukan</span>
                   </div>
                   <div className="flex items-center justify-between gap-4">
-                    <div className="flex flex-col">
+                    <div className="flex flex-col flex-1 min-w-0">
                       <span className="text-[9px] opacity-70 mb-0.5">Bulan Ini</span>
-                      <span className="text-sm text-white/95 truncate">{formatCurrency(currentMonthlyIncome)}</span>
+                      <span className="text-xs sm:text-sm font-black text-white/95 break-all">{formatCurrency(currentMonthlyIncome)}</span>
                     </div>
-                    <div className="w-px h-8 bg-white/20"></div>
-                    <div className="flex flex-col text-right">
+                    <div className="w-px h-8 bg-white/20 shrink-0"></div>
+                    <div className="flex flex-col flex-1 min-w-0 text-right">
                       <span className="text-[9px] opacity-70 mb-0.5">Minggu Ini</span>
-                      <span className="text-sm text-white/95 truncate">{formatCurrency(weeklyIncome)}</span>
+                      <span className="text-xs sm:text-sm font-black text-white/95 break-all">{formatCurrency(weeklyIncome)}</span>
                     </div>
                   </div>
                 </div>
@@ -231,14 +231,14 @@ export function Dashboard({
                     <span className="text-[10px] uppercase tracking-wider">Pengeluaran</span>
                   </div>
                   <div className="flex items-center justify-between gap-4">
-                    <div className="flex flex-col">
+                    <div className="flex flex-col flex-1 min-w-0">
                       <span className="text-[9px] opacity-70 mb-0.5">Bulan Ini</span>
-                      <span className="text-sm text-white/95 truncate">{formatCurrency(currentMonthlyExpense)}</span>
+                      <span className="text-xs sm:text-sm font-black text-white/95 break-all">{formatCurrency(currentMonthlyExpense)}</span>
                     </div>
-                    <div className="w-px h-8 bg-white/20"></div>
-                    <div className="flex flex-col text-right">
+                    <div className="w-px h-8 bg-white/20 shrink-0"></div>
+                    <div className="flex flex-col flex-1 min-w-0 text-right">
                       <span className="text-[9px] opacity-70 mb-0.5">Minggu Ini</span>
-                      <span className="text-sm text-white/95 truncate">{formatCurrency(weeklyExpense)}</span>
+                      <span className="text-xs sm:text-sm font-black text-white/95 break-all">{formatCurrency(weeklyExpense)}</span>
                     </div>
                   </div>
                 </div>
