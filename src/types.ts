@@ -15,6 +15,7 @@ export interface Transaction {
   description: string;
   storeName?: string;
   items?: TransactionItem[];
+  rawText?: string;
 }
 
 export const EXPENSE_CATEGORIES = [

@@ -199,7 +199,7 @@ export function Dashboard({
 
             <div className="relative z-10 pt-2 mb-2">
               <p className="text-sm font-medium text-white/90 mb-1 tracking-wide uppercase text-[11px] font-bold">
-                Total Saldo Saat Ini
+                {t('dashboard.totalBalance')}
               </p>
               <h3 className={`text-3xl sm:text-5xl md:text-6xl font-black font-sans tracking-tight mb-6 drop-shadow-md break-all leading-tight ${totalProfit < 0 ? 'text-red-400' : 'text-white'}`} title={formatCurrency(totalProfit)}>
                 {formatCurrency(totalProfit)}
@@ -210,16 +210,16 @@ export function Dashboard({
                   <div className="absolute top-0 right-0 w-24 h-24 bg-white/5 rounded-bl-full pointer-events-none"></div>
                   <div className="flex items-center gap-1.5 opacity-90 mb-2">
                     <ArrowDownLeft className="w-4 h-4 text-white" />
-                    <span className="text-[10px] uppercase tracking-wider">Pemasukan</span>
+                    <span className="text-[10px] uppercase tracking-wider">{t('dashboard.income')}</span>
                   </div>
                   <div className="flex items-center justify-between gap-4">
                     <div className="flex flex-col flex-1 min-w-0">
-                      <span className="text-[9px] opacity-70 mb-0.5">Bulan Ini</span>
+                      <span className="text-[9px] opacity-70 mb-0.5">{t('dashboard.thisMonth')}</span>
                       <span className="text-xs sm:text-sm font-black text-white/95 break-all">{formatCurrency(currentMonthlyIncome)}</span>
                     </div>
                     <div className="w-px h-8 bg-white/20 shrink-0"></div>
                     <div className="flex flex-col flex-1 min-w-0 text-right">
-                      <span className="text-[9px] opacity-70 mb-0.5">Minggu Ini</span>
+                      <span className="text-[9px] opacity-70 mb-0.5">{t('dashboard.thisWeek')}</span>
                       <span className="text-xs sm:text-sm font-black text-white/95 break-all">{formatCurrency(weeklyIncome)}</span>
                     </div>
                   </div>
@@ -228,16 +228,16 @@ export function Dashboard({
                   <div className="absolute top-0 right-0 w-24 h-24 bg-white/5 rounded-bl-full pointer-events-none"></div>
                   <div className="flex items-center gap-1.5 opacity-90 mb-2">
                     <ArrowUpRight className="w-4 h-4 text-white" />
-                    <span className="text-[10px] uppercase tracking-wider">Pengeluaran</span>
+                    <span className="text-[10px] uppercase tracking-wider">{t('dashboard.expense')}</span>
                   </div>
                   <div className="flex items-center justify-between gap-4">
                     <div className="flex flex-col flex-1 min-w-0">
-                      <span className="text-[9px] opacity-70 mb-0.5">Bulan Ini</span>
+                      <span className="text-[9px] opacity-70 mb-0.5">{t('dashboard.thisMonth')}</span>
                       <span className="text-xs sm:text-sm font-black text-white/95 break-all">{formatCurrency(currentMonthlyExpense)}</span>
                     </div>
                     <div className="w-px h-8 bg-white/20 shrink-0"></div>
                     <div className="flex flex-col flex-1 min-w-0 text-right">
-                      <span className="text-[9px] opacity-70 mb-0.5">Minggu Ini</span>
+                      <span className="text-[9px] opacity-70 mb-0.5">{t('dashboard.thisWeek')}</span>
                       <span className="text-xs sm:text-sm font-black text-white/95 break-all">{formatCurrency(weeklyExpense)}</span>
                     </div>
                   </div>
@@ -252,25 +252,25 @@ export function Dashboard({
               <div className="w-14 h-14 rounded-full bg-bg-base shadow-sm border border-sand flex items-center justify-center text-clay group-hover:bg-nature-green group-hover:text-white group-hover:border-nature-green transition-all transform group-hover:scale-105 active:scale-95">
                 <PieChart className="w-6 h-6" />
               </div>
-              <span className="text-[11px] font-bold text-text-main">Laporan</span>
+              <span className="text-[11px] font-bold text-text-main">{t('dashboard.report')}</span>
             </button>
             <button onClick={() => onNavigate?.('add')} className="flex flex-col items-center gap-3 group">
               <div className="w-14 h-14 rounded-full bg-nature-green text-white shadow-lg shadow-nature-green/30 flex items-center justify-center transition-all transform group-hover:scale-105 active:scale-95">
                 <Plus className="w-7 h-7" />
               </div>
-              <span className="text-[11px] font-bold text-text-main">Input</span>
+              <span className="text-[11px] font-bold text-text-main">{t('dashboard.input')}</span>
             </button>
             <button onClick={() => onNavigate?.('history')} className="flex flex-col items-center gap-3 group">
               <div className="w-14 h-14 rounded-full bg-bg-base shadow-sm border border-sand flex items-center justify-center text-clay group-hover:bg-nature-green group-hover:text-white group-hover:border-nature-green transition-all transform group-hover:scale-105 active:scale-95">
                 <Search className="w-6 h-6" />
               </div>
-              <span className="text-[11px] font-bold text-text-main">Riwayat</span>
+              <span className="text-[11px] font-bold text-text-main">{t('dashboard.history')}</span>
             </button>
             <button onClick={() => onNavigate?.('scan')} className="flex flex-col items-center gap-3 group">
               <div className="w-14 h-14 rounded-full bg-bg-base shadow-sm border border-sand flex items-center justify-center text-clay group-hover:bg-nature-green group-hover:text-white group-hover:border-nature-green transition-all transform group-hover:scale-105 active:scale-95">
                 <Camera className="w-6 h-6" />
               </div>
-              <span className="text-[11px] font-bold text-text-main">Scan</span>
+              <span className="text-[11px] font-bold text-text-main">{t('dashboard.scan')}</span>
             </button>
           </motion.div>
 
@@ -278,14 +278,14 @@ export function Dashboard({
           <motion.div variants={itemVariants} onClick={() => setShowBudgetDetails(true)} className="bg-bg-card rounded-3xl p-6 border border-sand shadow-sm relative overflow-hidden cursor-pointer group hover:border-clay/30 transition-colors">
             <div className="absolute -right-10 -top-10 w-32 h-32 bg-amber-500/5 rounded-full blur-2xl pointer-events-none group-hover:bg-amber-500/10 transition-colors duration-500"></div>
             
-            <div className="flex flex-col mb-4 relative z-10 w-full relative">
+            <div className="flex flex-col mb-4 relative z-10 w-full">
                <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-3">
                      <div className="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center text-amber-500">
                         <Target className="w-5 h-5" />
                      </div>
                      <div>
-                        <h4 className="font-bold text-text-main text-sm">Target Anggaran Bulanan</h4>
+                        <h4 className="font-bold text-text-main text-sm">{t('dashboard.monthlyBudgetTarget')}</h4>
                         <div className="relative inline-flex mt-0.5">
                            <button onClick={(e) => { e.stopPropagation(); setShowMonthDropdown(true); }} className="flex items-center gap-1 text-[11px] font-bold text-text-main hover:text-clay transition-colors px-2 py-0.5 bg-sand/30 rounded-full">
                               {format(selectedDate, "LLLL yyyy", { locale: language === 'en' ? enUS : id })}
@@ -307,22 +307,22 @@ export function Dashboard({
                <div className="space-y-3 relative z-10 w-full mb-5">
                   <div className="flex justify-between items-end">
                      <div>
-                        <span className="text-[10px] text-clay/80 font-bold uppercase tracking-wider block mb-1">Pengeluaran</span>
+                        <span className="text-[10px] text-clay/80 font-bold uppercase tracking-wider block mb-1">{t('dashboard.expense')}</span>
                         <span className="font-black text-lg text-text-main">{formatCurrency(selectedMonthExpense)}</span>
                      </div>
                      <div className="text-right">
-                        <span className="text-[10px] text-text-muted font-bold uppercase tracking-wider block mb-1">Target Batas</span>
+                        <span className="text-[10px] text-text-muted font-bold uppercase tracking-wider block mb-1">{t('dashboard.limitTarget')}</span>
                         <span className="font-bold text-sm text-text-muted">{formatCurrency(budgetTarget.expense)}</span>
                      </div>
                   </div>
                   
                   <div className="w-full h-2.5 bg-sand/50 rounded-full overflow-hidden relative">
                      <motion.div 
-                        initial={{ width: 0 }}
-                        animate={{ width: `${Math.min((selectedMonthExpense / budgetTarget.expense) * 100, 100)}%` }}
-                        transition={{ duration: 1, ease: "easeOut" }}
-                        className={`absolute top-0 left-0 h-full rounded-full transition-all duration-500 ${selectedMonthExpense > budgetTarget.expense ? 'bg-clay shadow-[0_0_10px_rgba(240,113,103,0.5)]' : 'bg-gradient-to-r from-red-400 to-red-500 shadow-[0_0_10px_rgba(239,68,68,0.5)]'}`}
-                     ></motion.div>
+                         initial={{ width: 0 }}
+                         animate={{ width: `${Math.min((selectedMonthExpense / budgetTarget.expense) * 100, 100)}%` }}
+                         transition={{ duration: 1, ease: "easeOut" }}
+                         className={`absolute top-0 left-0 h-full rounded-full transition-all duration-500 ${selectedMonthExpense > budgetTarget.expense ? 'bg-clay shadow-[0_0_10px_rgba(240,113,103,0.5)]' : 'bg-gradient-to-r from-red-400 to-red-500 shadow-[0_0_10px_rgba(239,68,68,0.5)]'}`}
+                      ></motion.div>
                   </div>
                </div>
 
@@ -330,11 +330,11 @@ export function Dashboard({
                <div className="space-y-3 relative z-10 w-full">
                   <div className="flex justify-between items-end">
                      <div>
-                        <span className="text-[10px] text-nature-green/80 font-bold uppercase tracking-wider block mb-1">Pemasukan</span>
+                        <span className="text-[10px] text-nature-green/80 font-bold uppercase tracking-wider block mb-1">{t('dashboard.income')}</span>
                         <span className="font-black text-lg text-text-main">{formatCurrency(selectedMonthIncome)}</span>
                      </div>
                      <div className="text-right">
-                        <span className="text-[10px] text-text-muted font-bold uppercase tracking-wider block mb-1">Target Minimal</span>
+                        <span className="text-[10px] text-text-muted font-bold uppercase tracking-wider block mb-1">{t('dashboard.minTarget')}</span>
                         <span className="font-bold text-sm text-text-muted">{formatCurrency(budgetTarget.income)}</span>
                      </div>
                   </div>
@@ -351,7 +351,7 @@ export function Dashboard({
             </div>
             {/* Click to expand text icon */}
             <div className="absolute bottom-2 right-4 text-[10px] text-text-muted font-medium flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-               Klik untuk detail bulan ini <ArrowUpRight className="w-3 h-3" />
+               {t('dashboard.clickForDetails')} <ArrowUpRight className="w-3 h-3" />
             </div>
           </motion.div>
         </div>
@@ -361,30 +361,30 @@ export function Dashboard({
           {/* Recent Transactions */}
           <motion.div variants={itemVariants} className="pt-2 bg-bg-card border border-sand p-6 rounded-3xl shadow-sm flex-1">
             <div className="flex justify-between items-center mb-6">
-              <h3 className="text-base font-extrabold text-text-main tracking-tight">Transaksi Terkini</h3>
-              <button onClick={() => onNavigate?.('history')} className="text-nature-green text-xs font-bold hover:underline">Lihat Semua</button>
+              <h3 className="text-base font-extrabold text-text-main tracking-tight">{t('dashboard.recentTransactions')}</h3>
+              <button onClick={() => onNavigate?.('history')} className="text-nature-green text-xs font-bold hover:underline">{t('dashboard.viewAll')}</button>
             </div>
         
         <div className="space-y-3">
           {recentTransactions.length === 0 ? (
-            <div className="text-center py-10 text-text-muted text-sm bg-sand/20 rounded-2xl border border-dashed border-sand">Belum ada transaksi terkini.</div>
+            <div className="text-center py-10 text-text-muted text-sm bg-sand/20 rounded-2xl border border-dashed border-sand">{t('dashboard.noRecentTransactions')}</div>
           ) : (
-            recentTransactions.map((t) => {
-              const { icon: Icon, color, bg } = getCategoryStyle(t.category, t.type as 'income' | 'expense');
+            recentTransactions.map((tItem) => {
+              const { icon: Icon, color, bg } = getCategoryStyle(tItem.category, tItem.type as 'income' | 'expense');
               return (
-              <div key={t.id} onClick={() => onNavigate?.('history')} className="flex justify-between items-center bg-bg-card p-4 rounded-2xl shadow-sm border border-sand/50 hover:border-sand transition-colors group/trx cursor-pointer">
+              <div key={tItem.id} onClick={() => onNavigate?.('history')} className="flex justify-between items-center bg-bg-card p-4 rounded-2xl shadow-sm border border-sand/50 hover:border-sand transition-colors group/trx cursor-pointer">
                 <div className="flex items-center gap-4">
                   <div className={`w-12 h-12 rounded-full flex flex-shrink-0 items-center justify-center transition-all group-hover/trx:scale-110 ${bg} ${color}`}>
                     <Icon className="w-6 h-6" />
                   </div>
                   <div className="flex flex-col">
-                    <p className={`text-[10px] uppercase tracking-wider font-semibold mb-0.5 ${color}`}>{t.category}</p>
-                    <h4 className="font-bold text-text-main text-sm max-w-[120px] sm:max-w-[180px] line-clamp-1">{t.description}</h4>
-                    <p className="text-[10px] text-text-muted mt-1 font-medium">{format(parseISO(t.date), "dd-MM-yyyy")}</p>
+                    <p className={`text-[10px] uppercase tracking-wider font-semibold mb-0.5 ${color}`}>{t(tItem.category)}</p>
+                    <h4 className="font-bold text-text-main text-sm max-w-[120px] sm:max-w-[180px] line-clamp-1">{tItem.description}</h4>
+                    <p className="text-[10px] text-text-muted mt-1 font-medium">{format(parseISO(tItem.date), "dd-MM-yyyy")}</p>
                   </div>
                 </div>
-                <div className={`font-bold text-sm whitespace-nowrap pl-2 ${t.type === 'income' ? 'text-nature-green' : 'text-clay'}`}>
-                  {t.type === 'income' ? '+' : '-'}{formatCurrency(t.amount)}
+                <div className={`font-bold text-sm whitespace-nowrap pl-2 ${tItem.type === 'income' ? 'text-nature-green' : 'text-clay'}`}>
+                  {tItem.type === 'income' ? '+' : '-'}{formatCurrency(tItem.amount)}
                 </div>
               </div>
             )})
@@ -414,14 +414,14 @@ export function Dashboard({
               <div className="max-w-md mx-auto">
                 <div className="w-12 h-1.5 bg-sand rounded-full mx-auto mb-6" />
                 <div className="flex justify-between items-center mb-6">
-                  <h3 className="text-xl font-extrabold text-text-main">Edit Batas Anggaran</h3>
+                  <h3 className="text-xl font-extrabold text-text-main">{t('dashboard.editBudget')}</h3>
                   <button onClick={() => setIsEditingBudget(false)} className="p-2 bg-sand/50 rounded-full text-text-muted hover:text-text-main transition-colors">
                     <X className="w-5 h-5" />
                   </button>
                 </div>
                 
                 <div className="mb-4">
-                  <label className="block text-sm font-bold text-text-muted mb-2">Target Pemasukan (Rp)</label>
+                  <label className="block text-sm font-bold text-text-muted mb-2">{t('dashboard.incomeTargetLabel')}</label>
                   <div className="relative">
                     <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                       <span className="text-nature-green font-bold">Rp</span>
@@ -437,7 +437,7 @@ export function Dashboard({
                 </div>
 
                 <div className="mb-8">
-                  <label className="block text-sm font-bold text-text-muted mb-2">Batas Pengeluaran (Rp)</label>
+                  <label className="block text-sm font-bold text-text-muted mb-2">{t('dashboard.expenseLimitLabel')}</label>
                   <div className="relative">
                     <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                       <span className="text-clay font-bold">Rp</span>
@@ -457,7 +457,7 @@ export function Dashboard({
                     onClick={handleSaveBudget}
                     className="flex-1 bg-gradient-to-r from-amber-400 to-amber-500 text-white font-bold py-4 rounded-2xl shadow-lg hover:shadow-xl hover:opacity-90 transition-all active:scale-[0.98]"
                   >
-                    Simpan Perubahan
+                    {t('dashboard.saveChanges')}
                   </button>
                 </div>
               </div>
@@ -484,7 +484,7 @@ export function Dashboard({
               <div className="max-w-md mx-auto">
                 <div className="w-12 h-1.5 bg-sand rounded-full mx-auto mb-6" />
                 <div className="flex justify-between items-center mb-6">
-                  <h3 className="text-xl font-extrabold text-text-main">Detail Transaksi {format(selectedDate, "LLLL yyyy", { locale: language === 'en' ? enUS : id })}</h3>
+                  <h3 className="text-xl font-extrabold text-text-main">{t('dashboard.transactionDetails')} {format(selectedDate, "LLLL yyyy", { locale: language === 'en' ? enUS : id })}</h3>
                   <button onClick={() => setShowBudgetDetails(false)} className="p-2 bg-sand/50 rounded-full text-text-muted hover:text-text-main transition-colors">
                     <X className="w-5 h-5" />
                   </button>
@@ -493,24 +493,24 @@ export function Dashboard({
                 <div className="space-y-6">
                    <div>
                       <h4 className="text-sm font-bold text-nature-green mb-3 uppercase tracking-wider flex items-center justify-between border-b border-sand pb-1">
-                         Pemasukan
+                         {t('dashboard.income')}
                       </h4>
                       <div className="space-y-2">
                          {monthlyIncomeTransactions.length === 0 ? (
-                            <p className="text-xs text-text-muted italic">Belum ada pemasukan bulan ini.</p>
+                            <p className="text-xs text-text-muted italic">{t('dashboard.noMonthlyIncome')}</p>
                          ) : (
-                            monthlyIncomeTransactions.slice(0, 3).map((t) => {
-                               const { icon: Icon, color, bg } = getCategoryStyle(t.category, 'income');
+                            monthlyIncomeTransactions.slice(0, 3).map((tItem) => {
+                               const { icon: Icon, color, bg } = getCategoryStyle(tItem.category, 'income');
                                return (
-                                  <div key={t.id} className="flex justify-between items-center bg-bg-card p-3 rounded-2xl border border-sand/50">
+                                  <div key={tItem.id} className="flex justify-between items-center bg-bg-card p-3 rounded-2xl border border-sand/50">
                                      <div className="flex items-center gap-3">
                                         <div className={`w-10 h-10 rounded-full flex items-center justify-center ${bg} ${color}`}><Icon className="w-5 h-5" /></div>
                                         <div>
-                                           <h4 className="font-bold text-text-main text-sm max-w-[150px] line-clamp-1">{t.description}</h4>
-                                           <p className="text-[10px] text-text-muted font-medium">{format(parseISO(t.date), "dd MMM")}</p>
+                                           <h4 className="font-bold text-text-main text-sm max-w-[150px] line-clamp-1">{tItem.description}</h4>
+                                           <p className="text-[10px] text-text-muted font-medium">{format(parseISO(tItem.date), "dd MMM")}</p>
                                         </div>
                                      </div>
-                                     <span className="font-bold text-sm text-nature-green">+{formatCurrency(t.amount)}</span>
+                                     <span className="font-bold text-sm text-nature-green">+{formatCurrency(tItem.amount)}</span>
                                   </div>
                                );
                             })
@@ -520,24 +520,24 @@ export function Dashboard({
 
                    <div>
                       <h4 className="text-sm font-bold text-clay mb-3 uppercase tracking-wider flex items-center justify-between border-b border-sand pb-1">
-                         Pengeluaran
+                         {t('dashboard.expense')}
                       </h4>
                       <div className="space-y-2">
                          {monthlyExpenseTransactions.length === 0 ? (
-                            <p className="text-xs text-text-muted italic">Belum ada pengeluaran bulan ini.</p>
+                            <p className="text-xs text-text-muted italic">{t('dashboard.noMonthlyExpense')}</p>
                          ) : (
-                            monthlyExpenseTransactions.slice(0, 3).map((t) => {
-                               const { icon: Icon, color, bg } = getCategoryStyle(t.category, 'expense');
+                            monthlyExpenseTransactions.slice(0, 3).map((tItem) => {
+                               const { icon: Icon, color, bg } = getCategoryStyle(tItem.category, 'expense');
                                return (
-                                  <div key={t.id} className="flex justify-between items-center bg-bg-card p-3 rounded-2xl border border-sand/50">
+                                  <div key={tItem.id} className="flex justify-between items-center bg-bg-card p-3 rounded-2xl border border-sand/50">
                                      <div className="flex items-center gap-3">
                                         <div className={`w-10 h-10 rounded-full flex items-center justify-center ${bg} ${color}`}><Icon className="w-5 h-5" /></div>
                                         <div>
-                                           <h4 className="font-bold text-text-main text-sm max-w-[150px] line-clamp-1">{t.description}</h4>
-                                           <p className="text-[10px] text-text-muted font-medium">{format(parseISO(t.date), "dd MMM")}</p>
+                                           <h4 className="font-bold text-text-main text-sm max-w-[150px] line-clamp-1">{tItem.description}</h4>
+                                           <p className="text-[10px] text-text-muted font-medium">{format(parseISO(tItem.date), "dd MMM")}</p>
                                         </div>
                                      </div>
-                                     <span className="font-bold text-sm text-clay">-{formatCurrency(t.amount)}</span>
+                                     <span className="font-bold text-sm text-clay">-{formatCurrency(tItem.amount)}</span>
                                   </div>
                                );
                             })
@@ -552,7 +552,7 @@ export function Dashboard({
                       }}
                       className="w-full mt-4 bg-clay/10 text-clay border border-clay/20 font-bold py-3 text-sm rounded-xl hover:bg-clay/20 transition-colors"
                    >
-                     Lihat Riwayat Lengkap
+                     {t('dashboard.viewFullHistory')}
                    </button>
                 </div>
               </div>
@@ -582,7 +582,7 @@ export function Dashboard({
                 <div className="w-12 h-1.5 bg-sand rounded-full mx-auto mb-6 shrink-0" />
                 <div className="flex justify-between items-center mb-6 shrink-0">
                   <h3 className="text-xl font-extrabold text-text-main flex items-center gap-2">
-                    <Calendar className="w-5 h-5 text-clay" /> Pilih Bulan Anggaran
+                    <Calendar className="w-5 h-5 text-clay" /> {t('dashboard.selectBudgetMonth')}
                   </h3>
                   <button onClick={() => setShowMonthDropdown(false)} className="p-2 bg-sand/50 rounded-full text-text-muted hover:text-text-main transition-colors">
                     <X className="w-5 h-5" />
@@ -594,7 +594,7 @@ export function Dashboard({
                   <div className="flex items-center justify-between bg-bg-card p-2 rounded-xl mb-4 border border-sand">
                      <button onClick={() => setSelectedDate(subMonths(selectedDate, 12))} className="p-2 hover:bg-sand/50 rounded-full">
                         <ChevronLeft className="w-5 h-5 text-text-muted" />
-                     </button>
+                      </button>
                      <span className="font-extrabold text-text-main text-lg">{format(selectedDate, "yyyy")}</span>
                      <button onClick={() => setSelectedDate(addMonths(selectedDate, 12))} className="p-2 hover:bg-sand/50 rounded-full">
                         <ChevronRight className="w-5 h-5 text-text-muted" />

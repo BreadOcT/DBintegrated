@@ -6,6 +6,9 @@ export interface User {
   email: string;
   phone?: string;
   photo?: string;
+  weekly_report?: boolean | number;
+  bill_reminder?: boolean | number;
+  promo_offer?: boolean | number;
 }
 
 interface AuthContextType {

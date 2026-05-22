@@ -3,6 +3,7 @@ import { User, Mail, Shield, Smartphone, Bell, Key, LogOut, Check, Camera as Cam
 import { Modal } from './ui/Modal';
 import { useAuth } from '../hooks/useAuth';
 import { TwoFactorAuth } from './TwoFactorAuth';
+import { useSettings } from '../hooks/useSettings';
 
 interface ProfileProps {
   onLogout?: () => void;
@@ -10,6 +11,7 @@ interface ProfileProps {
 
 export function Profile({ onLogout }: ProfileProps) {
   const { user, updateProfile } = useAuth();
+  const { t, language } = useSettings();
 
   // Modal states
   const [activeModal, setActiveModal] = useState<'none' | 'editProfile' | 'editPassword' | 'devices' | '2fa'>('none');
@@ -108,18 +110,27 @@ export function Profile({ onLogout }: ProfileProps) {
 
     // 2. Kirim ke backend
     try {
-      await fetch('/api/auth/notifications', {
+      const updatedPrefs = {
+        weekly_report: type === 'weekly' ? newValue : weeklyReport,
+        bill_reminder: type === 'bill' ? newValue : billReminder,
+        promo_offer: type === 'promo' ? newValue : promoOffer
+      };
+
+      const res = await fetch('/api/auth/notifications', {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({
-          weekly_report: type === 'weekly' ? newValue : weeklyReport,
-          bill_reminder: type === 'bill' ? newValue : billReminder,
-          promo_offer: type === 'promo' ? newValue : promoOffer
-        })
+        body: JSON.stringify(updatedPrefs)
       });
+
+      if (res.ok) {
+        // Sinkronisasi dengan user state di useAuth agar tidak ter-reset ketika pindah halaman/refresh
+        await updateProfile(updatedPrefs);
+      } else {
+        throw new Error("Respon server tidak oke");
+      }
     } catch (error) {
       console.error('Gagal memperbarui notifikasi:', error);
       // Kalau error/gagal nyambung, kembalikan posisi tombol ke semula
@@ -135,12 +146,12 @@ export function Profile({ onLogout }: ProfileProps) {
     setPasswordSuccess('');
     
     if (newPassword !== confirmPassword) {
-      setPasswordError('Konfirmasi kata sandi tidak cocok.');
+      setPasswordError(language === 'en' ? 'Confirm password does not match.' : 'Konfirmasi kata sandi tidak cocok.');
       return;
     }
     
     if (newPassword.length < 6) {
-      setPasswordError('Kata sandi baru minimal 6 karakter.');
+      setPasswordError(language === 'en' ? 'New password must be at least 6 characters.' : 'Kata sandi baru minimal 6 karakter.');
       return;
     }
 
@@ -157,9 +168,9 @@ export function Profile({ onLogout }: ProfileProps) {
       const data = await res.json();
       
       if (!res.ok) {
-        setPasswordError(data.error || 'Gagal mengubah kata sandi');
+        setPasswordError(data.error || (language === 'en' ? 'Failed to change password' : 'Gagal mengubah kata sandi'));
       } else {
-        setPasswordSuccess('Kata sandi berhasil diubah!');
+        setPasswordSuccess(language === 'en' ? 'Password changed successfully!' : 'Kata sandi berhasil diubah!');
         setTimeout(() => {
           setActiveModal('none');
           setOldPassword('');
@@ -169,7 +180,7 @@ export function Profile({ onLogout }: ProfileProps) {
         }, 1500);
       }
     } catch (e) {
-      setPasswordError('Terjadi kesalahan jaringan.');
+      setPasswordError(language === 'en' ? 'A network error occurred.' : 'Terjadi kesalahan jaringan.');
     }
   };
 
@@ -207,8 +218,8 @@ export function Profile({ onLogout }: ProfileProps) {
     <div className="max-w-3xl mx-auto space-y-6 mb-24">
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h2 className="text-2xl md:text-3xl font-black text-text-main tracking-tight">Profil Saya</h2>
-          <p className="text-text-muted mt-1 text-sm font-medium">Kelola informasi akun dan preferensi Anda.</p>
+          <h2 className="text-2xl md:text-3xl font-black text-text-main tracking-tight">{t('profile.title')}</h2>
+          <p className="text-text-muted mt-1 text-sm font-medium">{t('profile.subtitle')}</p>
         </div>
       </div>
 
@@ -239,50 +250,50 @@ export function Profile({ onLogout }: ProfileProps) {
           }}
           className="bg-sand/50 text-text-main hover:bg-clay hover:text-white px-5 py-2.5 rounded-full text-sm font-bold transition-colors"
         >
-          Edit Profil
+          {t('profile.editProfile')}
         </button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="bg-bg-card border border-sand rounded-3xl p-6 shadow-sm space-y-4">
           <h4 className="font-extrabold text-text-main flex items-center gap-2 mb-2">
-            <Shield className="w-5 h-5 text-clay" /> Keamanan
+            <Shield className="w-5 h-5 text-clay" /> {t('profile.security')}
           </h4>
           <div className="flex items-center justify-between py-2 border-b border-sand/50">
             <div>
-              <p className="font-bold text-sm text-text-main">Kata Sandi</p>
-              <p className="text-xs text-text-muted mt-0.5">Terakhir diubah baru-baru ini</p>
+              <p className="font-bold text-sm text-text-main">{t('profile.password')}</p>
+              <p className="text-xs text-text-muted mt-0.5">{t('profile.lastChanged')}</p>
             </div>
-            <button onClick={() => setActiveModal('editPassword')} className="text-clay font-bold text-xs hover:underline">Ubah</button>
+            <button onClick={() => setActiveModal('editPassword')} className="text-clay font-bold text-xs hover:underline">{t('profile.change')}</button>
           </div>
           <div className="flex items-center justify-between py-2 border-b border-sand/50">
             <div>
-              <p className="font-bold text-sm text-text-main">Autentikasi 2 Faktor</p>
-              <p className="text-xs text-text-muted mt-0.5">{is2FAEnabled ? 'Sudah aktif' : 'Tidak aktif'}</p>
+              <p className="font-bold text-sm text-text-main">{t('profile.twoFactor')}</p>
+              <p className="text-xs text-text-muted mt-0.5">{is2FAEnabled ? t('profile.active') : t('profile.inactive')}</p>
             </div>
             <button onClick={() => setActiveModal('2fa')} className={`${is2FAEnabled ? 'text-red-500' : 'text-nature-green'} font-bold text-xs hover:underline`}>
-              {is2FAEnabled ? 'Kelola' : 'Aktifkan'}
+              {is2FAEnabled ? t('profile.manage') : t('profile.enable')}
             </button>
           </div>
           <div className="flex items-center justify-between py-2">
             <div>
-              <p className="font-bold text-sm text-text-main">Perangkat Terhubung</p>
+              <p className="font-bold text-sm text-text-main">{t('profile.connectedDevices')}</p>
               <p className="text-xs text-text-muted mt-0.5">
-                {devices.length === 0 ? 'Memuat perangkat...' : `${devices.length} perangkat aktif`}
+                {devices.length === 0 ? t('profile.loadingDevices') : `${devices.length} ${t('profile.activeDevices')}`}
               </p>
             </div>
-            <button onClick={() => setActiveModal('devices')} className="text-clay font-bold text-xs hover:underline">Kelola</button>
+            <button onClick={() => setActiveModal('devices')} className="text-clay font-bold text-xs hover:underline">{t('profile.manage')}</button>
           </div>
         </div>
 
         <div className="bg-bg-card border border-sand rounded-3xl p-6 shadow-sm space-y-4">
           <h4 className="font-extrabold text-text-main flex items-center gap-2 mb-2">
-            <Bell className="w-5 h-5 text-nature-green" /> Notifikasi
+            <Bell className="w-5 h-5 text-nature-green" /> {t('profile.notifications')}
           </h4>
           <div className="flex items-center justify-between py-2 border-b border-sand/50">
             <div>
-              <p className="font-bold text-sm text-text-main">Laporan Mingguan</p>
-              <p className="text-xs text-text-muted mt-0.5">Terima rekapan keuangan via email</p>
+              <p className="font-bold text-sm text-text-main">{t('profile.weeklyReport')}</p>
+              <p className="text-xs text-text-muted mt-0.5">{t('profile.weeklyReportDesc')}</p>
             </div>
             <div 
               onClick={() => handleToggleNotification('weekly', weeklyReport)}
@@ -293,8 +304,8 @@ export function Profile({ onLogout }: ProfileProps) {
           </div>
           <div className="flex items-center justify-between py-2 border-b border-sand/50">
             <div>
-              <p className="font-bold text-sm text-text-main">Pengingat Tagihan</p>
-              <p className="text-xs text-text-muted mt-0.5">Notifikasi H-3 jatuh tempo</p>
+              <p className="font-bold text-sm text-text-main">{t('profile.billReminder')}</p>
+              <p className="text-xs text-text-muted mt-0.5">{t('profile.billReminderDesc')}</p>
             </div>
             <div 
               onClick={() => handleToggleNotification('bill', billReminder)}
@@ -305,8 +316,8 @@ export function Profile({ onLogout }: ProfileProps) {
           </div>
           <div className="flex items-center justify-between py-2">
             <div>
-              <p className="font-bold text-sm text-text-main">Promo & Penawaran</p>
-              <p className="text-xs text-text-muted mt-0.5">Info fitur baru dan diskon</p>
+              <p className="font-bold text-sm text-text-main">{t('profile.promoOffer')}</p>
+              <p className="text-xs text-text-muted mt-0.5">{t('profile.promoOfferDesc')}</p>
             </div>
             <div 
               onClick={() => handleToggleNotification('promo', promoOffer)}
@@ -323,11 +334,11 @@ export function Profile({ onLogout }: ProfileProps) {
           onClick={onLogout}
           className="flex items-center gap-2 px-6 py-3 rounded-full border-2 border-red-100 bg-red-50 text-red-600 hover:bg-red-600 hover:text-white hover:border-red-600 transition-all font-bold text-sm"
         >
-          <LogOut className="w-4 h-4" /> Keluar dari Akun
+          <LogOut className="w-4 h-4" /> {t('profile.logout')}
         </button>
       </div>
 
-      <Modal isOpen={activeModal === 'editProfile'} onClose={() => setActiveModal('none')} title="Edit Profil">
+      <Modal isOpen={activeModal === 'editProfile'} onClose={() => setActiveModal('none')} title={t('profile.editProfile')}>
         <div className="space-y-4">
           <div className="flex flex-col items-center mb-4">
              <div className="relative w-24 h-24 rounded-full bg-sand/30 mb-2 overflow-hidden border-2 border-bg-base shadow-sm">
@@ -340,67 +351,67 @@ export function Profile({ onLogout }: ProfileProps) {
                    <CameraIcon className="w-6 h-6 text-white" />
                 </div>
              </div>
-             <button onClick={() => fileInputRef.current?.click()} className="text-xs font-bold text-clay hover:underline">Ubah Foto</button>
+             <button onClick={() => fileInputRef.current?.click()} className="text-xs font-bold text-clay hover:underline">{t('profile.changePhoto')}</button>
              <input type="file" accept="image/*" ref={fileInputRef} onChange={handlePhotoUpload} className="hidden" />
           </div>
           <div>
-            <label className="block text-xs font-bold text-text-muted mb-1.5 uppercase tracking-wide">Nama Lengkap</label>
+            <label className="block text-xs font-bold text-text-muted mb-1.5 uppercase tracking-wide">{t('profile.fullName')}</label>
             <input 
               type="text" 
               value={editName}
               onChange={(e) => setEditName(e.target.value)}
-              className="w-full px-4 py-3 bg-bg-base border border-sand rounded-xl focus:outline-none focus:ring-2 focus:ring-clay/50 transition-shadow text-text-main"
+              className="w-full px-4 py-3 bg-bg-base border border-sand rounded-xl focus:outline-none focus:ring-2 focus:ring-clay/50 transition-shadow text-text-main font-bold"
             />
           </div>
           <div>
-            <label className="block text-xs font-bold text-text-muted mb-1.5 uppercase tracking-wide">Nomor Telepon</label>
+            <label className="block text-xs font-bold text-text-muted mb-1.5 uppercase tracking-wide">{t('profile.phoneNumber')}</label>
             <input 
               type="tel" 
               value={editPhone}
               onChange={(e) => setEditPhone(e.target.value)}
-              className="w-full px-4 py-3 bg-bg-base border border-sand rounded-xl focus:outline-none focus:ring-2 focus:ring-clay/50 transition-shadow text-text-main"
+              className="w-full px-4 py-3 bg-bg-base border border-sand rounded-xl focus:outline-none focus:ring-2 focus:ring-clay/50 transition-shadow text-text-main font-bold"
             />
           </div>
           <button 
             onClick={handleSaveProfile}
             className="w-full mt-4 bg-clay text-white font-bold py-3 rounded-xl hover:bg-clay/90 transition-colors"
           >
-            Simpan Perubahan
+            {t('profile.saveChanges')}
           </button>
         </div>
       </Modal>
 
-      <Modal isOpen={activeModal === 'editPassword'} onClose={() => { setActiveModal('none'); setPasswordError(''); setPasswordSuccess(''); setOldPassword(''); setNewPassword(''); setConfirmPassword(''); }} title="Ubah Kata Sandi">
+      <Modal isOpen={activeModal === 'editPassword'} onClose={() => { setActiveModal('none'); setPasswordError(''); setPasswordSuccess(''); setOldPassword(''); setNewPassword(''); setConfirmPassword(''); }} title={t('profile.updatePassword')}>
         <div className="space-y-4">
           {passwordError && <div className="p-3 bg-red-100 text-red-600 rounded-lg text-sm font-bold">{passwordError}</div>}
           {passwordSuccess && <div className="p-3 bg-green-100 text-green-600 rounded-lg text-sm font-bold">{passwordSuccess}</div>}
           <div>
-            <label className="block text-xs font-bold text-text-muted mb-1.5 uppercase tracking-wide">Kata Sandi Lama</label>
+            <label className="block text-xs font-bold text-text-muted mb-1.5 uppercase tracking-wide">{t('profile.oldPassword')}</label>
             <input 
               type="password" 
               value={oldPassword}
               onChange={(e) => setOldPassword(e.target.value)}
-              placeholder="Masukkan kata sandi lama"
+              placeholder={t('profile.enterOldPassword')}
               className="w-full px-4 py-3 bg-bg-base border border-sand rounded-xl focus:outline-none focus:ring-2 focus:ring-clay/50 transition-shadow text-text-main"
             />
           </div>
           <div>
-            <label className="block text-xs font-bold text-text-muted mb-1.5 uppercase tracking-wide">Kata Sandi Baru</label>
+            <label className="block text-xs font-bold text-text-muted mb-1.5 uppercase tracking-wide">{t('profile.newPassword')}</label>
             <input 
               type="password" 
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
-              placeholder="Masukkan kata sandi baru"
+              placeholder={t('profile.enterNewPassword')}
               className="w-full px-4 py-3 bg-bg-base border border-sand rounded-xl focus:outline-none focus:ring-2 focus:ring-clay/50 transition-shadow text-text-main"
             />
           </div>
           <div>
-            <label className="block text-xs font-bold text-text-muted mb-1.5 uppercase tracking-wide">Konfirmasi Kata Sandi Baru</label>
+            <label className="block text-xs font-bold text-text-muted mb-1.5 uppercase tracking-wide">{t('profile.confirmPassword')}</label>
             <input 
               type="password" 
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
-              placeholder="Ulangi kata sandi baru"
+              placeholder={t('profile.repeatNewPassword')}
               className="w-full px-4 py-3 bg-bg-base border border-sand rounded-xl focus:outline-none focus:ring-2 focus:ring-clay/50 transition-shadow text-text-main"
             />
           </div>
@@ -408,25 +419,25 @@ export function Profile({ onLogout }: ProfileProps) {
             onClick={handleSavePassword}
             className="w-full mt-4 bg-clay text-white font-bold py-3 rounded-xl hover:bg-clay/90 transition-colors"
           >
-            Perbarui Kata Sandi
+            {t('profile.updatePassword')}
           </button>
         </div>
       </Modal>
 
-      <Modal isOpen={activeModal === 'devices'} onClose={() => setActiveModal('none')} title="Perangkat Terhubung">
+      <Modal isOpen={activeModal === 'devices'} onClose={() => setActiveModal('none')} title={t('profile.connectedDevices')}>
         <div className="space-y-4">
           {devices.length === 0 ? (
-            <p className="text-sm text-text-muted text-center py-4">Tidak ada perangkat lain terdeteksi.</p>
+            <p className="text-sm text-text-muted text-center py-4">{t('profile.noOtherDevices')}</p>
           ) : (
             devices.map((dev: any, index: number) => (
               <div key={dev.id || index} className="p-4 border border-sand rounded-2xl flex items-center justify-between">
                 <div>
                   <p className="font-bold text-sm text-text-main flex items-center gap-2">
                     {dev.device_name} 
-                    {index === 0 && <span className="bg-nature-green/10 text-nature-green text-[10px] px-2 py-0.5 rounded-full">Sesi Ini</span>}
+                    {index === 0 && <span className="bg-nature-green/10 text-nature-green text-[10px] px-2 py-0.5 rounded-full">{t('profile.thisSession')}</span>}
                   </p>
                   <p className="text-xs text-text-muted mt-1">
-                    {dev.location} • Aktif: {new Date(dev.last_active).toLocaleDateString('id-ID')}
+                    {dev.location} • Aktif: {new Date(dev.last_active).toLocaleDateString(language === 'en' ? 'en-US' : 'id-ID')}
                   </p>
                 </div>
                 {index > 0 && (
@@ -434,7 +445,7 @@ export function Profile({ onLogout }: ProfileProps) {
                     onClick={() => handleLogoutDevice(dev.id)}
                     className="text-red-500 hover:bg-red-50 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors"
                   >
-                    Keluarkan
+                    {t('profile.logoutDevice')}
                   </button>
                 )}
               </div>

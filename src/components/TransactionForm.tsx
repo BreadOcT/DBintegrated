@@ -9,6 +9,7 @@ import {
 import { Button } from "./ui/Button";
 import { Plus, ShoppingBag, Check, X, Pencil } from "lucide-react";
 import { motion } from "motion/react";
+import { useSettings } from "../hooks/useSettings";
 
 interface TransactionFormProps {
   initialData?: Partial<Transaction>;
@@ -25,6 +26,8 @@ export function TransactionForm({
   isReviewMode = false,
   isEditMode = false,
 }: TransactionFormProps) {
+  const { t, language } = useSettings();
+  
   const [type, setType] = useState<TransactionType>(
     initialData?.type || "expense",
   );
@@ -78,9 +81,13 @@ export function TransactionForm({
   }, []);
 
   const handleAddItem = () => {
-    if (!newItemName.trim()) return alert("Nama item tidak boleh kosong");
+    if (!newItemName.trim()) {
+      return alert(language === 'en' ? "Item name cannot be empty" : "Nama item tidak boleh kosong");
+    }
     const price = parseFloat(newItemPrice);
-    if (isNaN(price) || price < 0) return alert("Harga tidak valid");
+    if (isNaN(price) || price < 0) {
+      return alert(language === 'en' ? "Invalid price" : "Harga tidak valid");
+    }
     const qty = parseInt(newItemQty) || 1;
 
     const newItem = {
@@ -132,7 +139,9 @@ export function TransactionForm({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!amount || isNaN(Number(amount))) return alert("Nominal tidak valid");
+    if (!amount || isNaN(Number(amount))) {
+      return alert(language === 'en' ? "Invalid amount" : "Nominal tidak valid");
+    }
 
     onSubmit({
       type,
@@ -154,19 +163,16 @@ export function TransactionForm({
     >
       <h2 className="text-xl md:text-2xl font-extrabold mb-6 text-text-main text-center">
         {isReviewMode
-          ? "Tinjau Hasil Scan AI"
+          ? t('trxForm.reviewTitle')
           : isEditMode
-            ? "Edit Transaksi"
-            : "Catat Transaksi"}
+            ? t('trxForm.editTitle')
+            : t('trxForm.addTitle')}
       </h2>
 
       {isReviewMode && (
         <div className="mb-6 p-4 bg-orange-100 border border-orange-200 text-orange-800 rounded-2xl text-sm shadow-sm flex flex-col items-center text-center">
-          <span className="font-bold mb-1">Perhatian!</span>
-          <span>
-            AI telah mengekstrak data dari foto. Silakan periksa dan perbaiki
-            jika ada kesalahan.
-          </span>
+          <span className="font-bold mb-1">{language === 'en' ? 'Attention!' : 'Perhatian!'}</span>
+          <span>{t('trxForm.reviewDesc')}</span>
         </div>
       )}
 
@@ -185,7 +191,7 @@ export function TransactionForm({
               setCategory(EXPENSE_CATEGORIES[0]);
             }}
           >
-            Pengeluaran
+            {t('dashboard.expense')}
           </button>
           <button
             type="button"
@@ -199,14 +205,14 @@ export function TransactionForm({
               setCategory(INCOME_CATEGORIES[0]);
             }}
           >
-            Pemasukan
+            {t('dashboard.income')}
           </button>
         </div>
 
         {/* Amount Input */}
         <div className="flex flex-col items-center px-4">
           <span className="text-text-muted font-bold text-xs uppercase tracking-widest mb-3">
-            {type === "expense" ? "Nominal Pengeluaran" : "Nominal Pemasukan"}
+            {type === "expense" ? t('trxForm.expenseAmount') : t('trxForm.incomeAmount')}
           </span>
           <div className="relative flex items-center justify-center w-full mb-6">
             <span className="text-3xl font-bold text-text-muted mr-3">Rp</span>
@@ -232,7 +238,7 @@ export function TransactionForm({
 
           {items.length > 0 && (
             <p className="text-xs font-bold text-clay animate-pulse mb-4">
-              🔒 Diisi otomatis dari total rincian item
+              {t('trxForm.autoFilled')}
             </p>
           )}
 
@@ -246,7 +252,7 @@ export function TransactionForm({
                   onClick={() => setAmount(preset.toString())}
                   className={`px-5 py-2 rounded-xl text-sm font-bold transition-all transform active:scale-95 ${amount === preset.toString() ? (type === "expense" ? "bg-clay text-white shadow-md shadow-clay/20 border border-clay" : "bg-nature-green text-white shadow-md shadow-nature-green/20 border border-nature-green") : "bg-bg-card text-text-muted border border-sand hover:bg-sand/30 hover:text-text-main"}`}
                 >
-                  {preset.toLocaleString("id-ID")}
+                  {preset.toLocaleString(language === 'en' ? 'en-US' : 'id-ID')}
                 </button>
               ))}
             </div>
@@ -258,7 +264,7 @@ export function TransactionForm({
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           <div className="flex flex-col">
             <label className="text-[11px] font-bold text-text-muted uppercase tracking-wider mb-2 ml-1">
-              Tanggal
+              {t('trxForm.date')}
             </label>
             <input
               type="date"
@@ -271,7 +277,7 @@ export function TransactionForm({
 
           <div className="flex flex-col">
             <label className="text-[11px] font-bold text-text-muted uppercase tracking-wider mb-2 ml-1">
-              Kategori
+              {t('trxForm.category')}
             </label>
             <select
               value={category}
@@ -280,7 +286,7 @@ export function TransactionForm({
             >
               {categories.map((cat) => (
                 <option key={cat} value={cat}>
-                  {cat}
+                  {t(cat)}
                 </option>
               ))}
             </select>
@@ -290,28 +296,28 @@ export function TransactionForm({
         <div className="flex flex-col gap-5 mt-2">
           <div className="flex flex-col">
             <label className="text-[11px] font-bold text-text-muted uppercase tracking-wider mb-2 ml-1">
-              Keterangan
+              {t('trxForm.description')}
             </label>
             <input
               type="text"
               required
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              className="w-full border-sand rounded-2xl shadow-sm focus:border-clay focus:ring-clay border p-4 bg-bg-card text-text-main font-semibold outline-none transition-all hover:border-clay/50 placeholder:font-normal"
-              placeholder="Cth: Makan siang, Transportasi"
+              className="w-full border-sand rounded-2xl shadow-sm focus:border-clay focus:ring-clay border p-4 bg-bg-card text-text-main font-semibold outline-none transition-all hover:border-clay/50 placeholder:font-normal font-bold"
+              placeholder={t('trxForm.descriptionPlaceholder')}
             />
           </div>
 
           <div className="flex flex-col">
             <label className="text-[11px] font-bold text-text-muted uppercase tracking-wider mb-2 ml-1">
-              Nama Toko (Opsional)
+              {t('trxForm.storeName')}
             </label>
             <input
               type="text"
               value={storeName}
               onChange={(e) => setStoreName(e.target.value)}
-              className="w-full border-sand rounded-2xl shadow-sm focus:border-clay focus:ring-clay border p-4 bg-bg-card text-text-main font-semibold outline-none transition-all hover:border-clay/50 placeholder:font-normal"
-              placeholder="Cth: Indomaret, Solaria"
+              className="w-full border-sand rounded-2xl shadow-sm focus:border-clay focus:ring-clay border p-4 bg-bg-card text-text-main font-semibold outline-none transition-all hover:border-clay/50 placeholder:font-normal font-bold"
+              placeholder={t('trxForm.storeNamePlaceholder')}
             />
           </div>
         </div>
@@ -325,7 +331,7 @@ export function TransactionForm({
               </div>
               <div className="flex flex-col">
                 <label className="text-sm font-black text-text-main">
-                  Rincian Item (Opsional)
+                  {t('trxForm.itemDetails')}
                 </label>
               </div>
             </div>
@@ -333,7 +339,7 @@ export function TransactionForm({
             <div className="flex items-center gap-2">
               {items.length > 0 && (
                 <span className="text-xs font-bold text-[#68B943] bg-[#68B943]/10 px-2.5 py-1 rounded-full">
-                  {items.length} Item
+                  {items.length} {t('trxForm.item')}
                 </span>
               )}
               {!(isAddingItem || editingItemIdx !== null) && (
@@ -343,7 +349,7 @@ export function TransactionForm({
                   onClick={() => setIsAddingItem(true)}
                   className="flex items-center gap-1 border border-sand bg-white dark:bg-bg-card text-text-main font-bold text-xs py-1.5 px-4 rounded-full hover:bg-sand/30 shadow-sm active:scale-95 transition-all"
                 >
-                  <Plus className="w-3.5 h-3.5" /> Tambah
+                  <Plus className="w-3.5 h-3.5" /> {t('trxForm.add')}
                 </button>
               )}
             </div>
@@ -367,7 +373,7 @@ export function TransactionForm({
                   
                   <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0 border-t sm:border-t-0 pt-2 sm:pt-0 border-sand/30">
                     <span className="font-black text-purple-700 text-sm whitespace-nowrap">
-                      Rp {((item.price || 0) * (item.qty || 1)).toLocaleString("id-ID")}
+                      Rp {((item.price || 0) * (item.qty || 1)).toLocaleString(language === 'en' ? 'en-US' : 'id-ID')}
                     </span>
                     <div className="flex items-center gap-1 shrink-0">
                       <button
@@ -404,40 +410,40 @@ export function TransactionForm({
             >
               <div>
                 <label className="text-[10px] font-extrabold text-text-muted uppercase tracking-wider mb-1.5 block">
-                  Nama Barang
+                  {t('trxForm.itemName')}
                 </label>
                 <input
                   type="text"
-                  placeholder="Cth: Kertas HVS"
+                  placeholder={t('trxForm.itemNamePlaceholder')}
                   value={newItemName}
                   onChange={(e) => setNewItemName(e.target.value)}
-                  className="w-full border-b border-sand pb-1 text-sm bg-transparent outline-none focus:border-[#68B943] text-text-main font-semibold placeholder-sand/60"
+                  className="w-full border-b border-sand pb-1 text-sm bg-transparent outline-none focus:border-[#68B943] text-text-main font-semibold placeholder-sand/60 font-bold"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="text-[10px] font-extrabold text-text-muted uppercase tracking-wider mb-1.5 block">
-                    Qty
+                    {t('trxForm.qty')}
                   </label>
                   <input
                     type="number"
                     min="1"
                     value={newItemQty}
                     onChange={(e) => setNewItemQty(e.target.value)}
-                    className="w-full border-b border-sand pb-1 text-sm bg-transparent outline-none focus:border-[#68B943] text-text-main font-semibold text-center"
+                    className="w-full border-b border-sand pb-1 text-sm bg-transparent outline-none focus:border-[#68B943] text-text-main font-semibold text-center font-bold"
                   />
                 </div>
                 <div>
                   <label className="text-[10px] font-extrabold text-text-muted uppercase tracking-wider mb-1.5 block">
-                    Total (RP)
+                    {t('trxForm.totalRp')}
                   </label>
                   <input
                     type="number"
                     placeholder="50000"
                     value={newItemPrice}
                     onChange={(e) => setNewItemPrice(e.target.value)}
-                    className="w-full border-b border-sand pb-1 text-sm bg-transparent outline-none focus:border-[#68B943] text-text-main font-semibold text-right placeholder-sand/60"
+                    className="w-full border-b border-sand pb-1 text-sm bg-transparent outline-none focus:border-[#68B943] text-text-main font-semibold text-right placeholder-sand/60 font-bold"
                   />
                 </div>
               </div>
@@ -448,14 +454,14 @@ export function TransactionForm({
                   onClick={handleCancelAddItem}
                   className="flex items-center gap-1 text-xs font-bold text-text-muted hover:text-text-main px-3 py-2 rounded-xl transition-all"
                 >
-                  <X className="w-3.5 h-3.5" /> Batal
+                  <X className="w-3.5 h-3.5" /> {t('trxForm.cancel')}
                 </button>
                 <button
                   type="button"
                   onClick={handleAddItem}
                   className="flex items-center gap-1.5 text-xs font-bold bg-[#68B943] text-white px-5 py-2.5 rounded-xl shadow-md hover:opacity-90 active:scale-95 transition-all"
                 >
-                  <Check className="w-3.5 h-3.5" /> {editingItemIdx !== null ? "Simpan" : "Tambah"}
+                  <Check className="w-3.5 h-3.5" /> {editingItemIdx !== null ? t('trxForm.save') : t('trxForm.add')}
                 </button>
               </div>
             </motion.div>
@@ -468,10 +474,10 @@ export function TransactionForm({
             className={`w-full text-white font-bold text-lg py-4 rounded-2xl shadow-lg hover:opacity-90 transition-all active:scale-95 ${type === "expense" ? "bg-clay shadow-clay/30" : "bg-nature-green shadow-nature-green/30"}`}
           >
             {isReviewMode
-              ? "Simpan Scan AI"
+              ? t('trxForm.saveAiScan')
               : isEditMode
-                ? "Simpan Perubahan"
-                : "Catat Transaksi"}
+                ? t('trxForm.saveChanges')
+                : t('trxForm.record')}
           </button>
           {onCancel && (
             <button
@@ -479,7 +485,7 @@ export function TransactionForm({
               className="w-full border-2 border-sand text-text-main font-bold text-base py-3.5 rounded-2xl hover:bg-sand/30 transition-colors"
               onClick={onCancel}
             >
-              Batal
+              {t('trxForm.cancel')}
             </button>
           )}
         </div>

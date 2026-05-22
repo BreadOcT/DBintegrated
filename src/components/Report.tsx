@@ -2,9 +2,10 @@ import React, { useState } from "react";
 import { Transaction } from "../types";
 import { useSettings } from "../hooks/useSettings";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend, LineChart, Line, XAxis, YAxis, CartesianGrid, BarChart, Bar } from "recharts";
-import { format, parseISO, subDays, endOfMonth, parse } from "date-fns";
+import { format, parseISO, subDays, endOfMonth } from "date-fns";
+import { id, enUS } from "date-fns/locale";
 import { motion } from "motion/react";
-import { ArrowDownLeft, ArrowUpRight, ArrowRight, ArrowUpCircle, ArrowDownCircle } from "lucide-react";
+import { ArrowDownLeft, ArrowUpRight, ArrowRight } from "lucide-react";
 import { getCategoryStyle } from "./History";
 
 interface SimpleAccountingReportProps {
@@ -13,11 +14,13 @@ interface SimpleAccountingReportProps {
 }
 
 export function SimpleAccountingReport({ transactions, onNavigateToHistory }: SimpleAccountingReportProps) {
-  const { formatCurrency } = useSettings();
+  const { formatCurrency, t, language } = useSettings();
   const [timeFilter, setTimeFilter] = useState("Mingguan");
 
   let expenseChartData = [];
   let incomeChartData = [];
+
+  const dateLocale = language === 'en' ? enUS : id;
 
   if (timeFilter === "Mingguan") {
     const filterDays = 7;
@@ -37,7 +40,7 @@ export function SimpleAccountingReport({ transactions, onNavigateToHistory }: Si
       }, [] as {name: string, value: number}[]);
 
       return {
-        date: format(parseISO(date), "dd MMM"),
+        date: format(parseISO(date), "dd MMM", { locale: dateLocale }),
         rawStartDate: date,
         rawEndDate: date,
         value: total,
@@ -57,7 +60,7 @@ export function SimpleAccountingReport({ transactions, onNavigateToHistory }: Si
       }, [] as {name: string, value: number}[]);
 
       return {
-        date: format(parseISO(date), "dd MMM"),
+        date: format(parseISO(date), "dd MMM", { locale: dateLocale }),
         rawStartDate: date,
         rawEndDate: date,
         value: total,
@@ -85,7 +88,7 @@ export function SimpleAccountingReport({ transactions, onNavigateToHistory }: Si
       }, [] as {name: string, value: number}[]);
 
       return {
-        date: format(new Date(`${month}-01T00:00:00`), "MMM yyyy"),
+        date: format(new Date(`${month}-01T00:00:00`), "MMM yyyy", { locale: dateLocale }),
         rawStartDate: `${month}-01`,
         rawEndDate: format(endOfMonth(new Date(`${month}-01T00:00:00`)), "yyyy-MM-dd"),
         value: total,
@@ -105,7 +108,7 @@ export function SimpleAccountingReport({ transactions, onNavigateToHistory }: Si
       }, [] as {name: string, value: number}[]);
 
       return {
-        date: format(new Date(`${month}-01T00:00:00`), "MMM yyyy"),
+        date: format(new Date(`${month}-01T00:00:00`), "MMM yyyy", { locale: dateLocale }),
         rawStartDate: `${month}-01`,
         rawEndDate: format(endOfMonth(new Date(`${month}-01T00:00:00`)), "yyyy-MM-dd"),
         value: total,
@@ -118,8 +121,8 @@ export function SimpleAccountingReport({ transactions, onNavigateToHistory }: Si
   const chartData = expenseChartData.map((exp, i) => {
     return {
       date: exp.date,
-      Pengeluaran: exp.value,
-      Pendapatan: incomeChartData[i].value,
+      [t('report.expense')]: exp.value,
+      [t('report.income')]: incomeChartData[i].value,
     };
   });
 
@@ -158,11 +161,11 @@ export function SimpleAccountingReport({ transactions, onNavigateToHistory }: Si
           <div className="space-y-2">
             {data.categories.length > 0 ? data.categories.map((c: any) => (
               <div key={c.name} className="flex justify-between items-center gap-6 text-xs">
-                <span className="text-text-muted">{c.name}</span>
+                <span className="text-text-muted">{t(c.name)}</span>
                 <span className="font-bold text-text-main">{formatCurrency(c.value)}</span>
               </div>
             )) : (
-              <p className="text-xs text-text-muted italic">Tidak ada data transaksi</p>
+              <p className="text-xs text-text-muted italic">{t('report.noTransactionData')}</p>
             )}
           </div>
           <div className="mt-4 pt-3 border-t border-sand flex justify-between items-center text-sm font-black">
@@ -185,12 +188,12 @@ export function SimpleAccountingReport({ transactions, onNavigateToHistory }: Si
       className="space-y-6 pt-2 max-w-lg mx-auto lg:max-w-none"
     >
       <div className="flex justify-between items-center px-2 mb-4">
-        <h2 className="text-xl font-extrabold text-text-main">Statistik</h2>
+        <h2 className="text-xl font-extrabold text-text-main">{t('report.title')}</h2>
       </div>
 
       <div className="glass-card p-6 shadow-sm">
         <div className="flex justify-between items-center mb-6">
-          <h3 className="font-bold text-text-main">Tren Arus Kas</h3>
+          <h3 className="font-bold text-text-main">{t('report.cashFlowTrend')}</h3>
           <div className="flex bg-sand/30 p-1 rounded-full">
             {["Mingguan", "Bulanan"].map((filter) => (
               <button
@@ -202,7 +205,7 @@ export function SimpleAccountingReport({ transactions, onNavigateToHistory }: Si
                     : "text-text-muted hover:text-text-main"
                 }`}
               >
-                {filter}
+                {filter === "Mingguan" ? t('report.weekly') : t('report.monthly')}
               </button>
             ))}
           </div>
@@ -227,8 +230,8 @@ export function SimpleAccountingReport({ transactions, onNavigateToHistory }: Si
                 contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
               />
               <Legend wrapperStyle={{ fontSize: '10px', paddingTop: '10px' }} />
-              <Line type="monotone" dataKey="Pengeluaran" stroke="#f05f3b" strokeWidth={3} dot={false} activeDot={{ r: 6 }} name="Pengeluaran" />
-              <Line type="monotone" dataKey="Pendapatan" stroke="#22da47" strokeWidth={3} dot={false} activeDot={{ r: 6 }} name="Pendapatan" />
+              <Line type="monotone" dataKey={t('report.expense')} stroke="#f05f3b" strokeWidth={3} dot={false} activeDot={{ r: 6 }} name={t('report.expense')} />
+              <Line type="monotone" dataKey={t('report.income')} stroke="#22da47" strokeWidth={3} dot={false} activeDot={{ r: 6 }} name={t('report.income')} />
             </LineChart>
           </ResponsiveContainer>
         </div>
@@ -241,7 +244,7 @@ export function SimpleAccountingReport({ transactions, onNavigateToHistory }: Si
             <ArrowDownLeft className="h-5 w-5 md:h-6 md:w-6 text-white" />
           </div>
           <div className="z-10 flex-1 min-w-0">
-            <p className="text-xs md:text-sm font-medium text-white/90 mb-0.5">Pemasukan</p>
+            <p className="text-xs md:text-sm font-medium text-white/90 mb-0.5">{t('dashboard.income')}</p>
             <p className="font-extrabold text-base md:text-xl tracking-tight truncate" title={formatCurrency(totalIncome)}>{formatCurrency(totalIncome)}</p>
           </div>
         </div>
@@ -252,17 +255,19 @@ export function SimpleAccountingReport({ transactions, onNavigateToHistory }: Si
             <ArrowUpRight className="h-5 w-5 md:h-6 md:w-6 text-white" />
           </div>
           <div className="z-10 flex-1 min-w-0">
-            <p className="text-xs md:text-sm font-medium text-white/90 mb-0.5">Pengeluaran</p>
+            <p className="text-xs md:text-sm font-medium text-white/90 mb-0.5">{t('dashboard.expense')}</p>
             <p className="font-extrabold text-base md:text-xl tracking-tight truncate" title={formatCurrency(totalExpense)}>{formatCurrency(totalExpense)}</p>
           </div>
         </div>
       </div>
 
       <div className="glass-card p-6 shadow-sm mt-6 mb-24">
-        <h3 className="font-bold text-text-main mb-6">Distribusi Kategori ({timeFilter})</h3>
+        <h3 className="font-bold text-text-main mb-6">
+          {t('report.categoryDistribution').replace('{timeFilter}', timeFilter === "Mingguan" ? t('report.weekly') : t('report.monthly'))}
+        </h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           <div className="flex flex-col">
-            <h4 className="text-xs font-bold uppercase tracking-wider text-text-muted mb-4 text-center">Pengeluaran</h4>
+            <h4 className="text-xs font-bold uppercase tracking-wider text-text-muted mb-4 text-center">{t('report.expense')}</h4>
             <div className="h-48 flex items-center justify-center mb-6">
               {totalExpense > 0 ? (
                 <div className="w-full h-full">
@@ -277,12 +282,12 @@ export function SimpleAccountingReport({ transactions, onNavigateToHistory }: Si
                   </ResponsiveContainer>
                 </div>
               ) : (
-                <div className="h-full flex items-center justify-center text-text-muted text-sm">Belum ada data</div>
+                <div className="h-full flex items-center justify-center text-text-muted text-sm">{t('report.noData')}</div>
               )}
             </div>
             
             <div className="flex-1">
-              <h5 className="text-xs font-extrabold text-text-main mb-3 px-1">Riwayat Pengeluaran</h5>
+              <h5 className="text-xs font-extrabold text-text-main mb-3 px-1">{t('report.expenseHistory')}</h5>
               <div className="glass-card divide-y divide-sand border border-sand shadow-sm bg-white/50">
                 {recentExpenses.length > 0 ? (
                   recentExpenses.map(expense => {
@@ -295,7 +300,7 @@ export function SimpleAccountingReport({ transactions, onNavigateToHistory }: Si
                           </div>
                           <div>
                             <p className="font-bold text-text-main text-xs truncate max-w-[120px]">{expense.storeName || expense.description}</p>
-                            <p className="text-[10px] text-text-muted mt-0.5">{format(parseISO(expense.date), "dd MMM")}</p>
+                            <p className="text-[10px] text-text-muted mt-0.5">{format(parseISO(expense.date), "dd MMM", { locale: dateLocale })}</p>
                           </div>
                         </div>
                         <div className="text-right">
@@ -305,14 +310,14 @@ export function SimpleAccountingReport({ transactions, onNavigateToHistory }: Si
                     );
                   })
                 ) : (
-                  <div className="p-4 text-center text-text-muted text-xs">Belum ada pengeluaran</div>
+                  <div className="p-4 text-center text-text-muted text-xs">{t('report.noExpense')}</div>
                 )}
               </div>
             </div>
           </div>
           
           <div className="flex flex-col">
-            <h4 className="text-xs font-bold uppercase tracking-wider text-text-muted mb-4 text-center">Pendapatan</h4>
+            <h4 className="text-xs font-bold uppercase tracking-wider text-text-muted mb-4 text-center">{t('report.income')}</h4>
             <div className="h-48 flex items-center justify-center mb-6">
               {totalIncome > 0 ? (
                 <div className="w-full h-full">
@@ -327,12 +332,12 @@ export function SimpleAccountingReport({ transactions, onNavigateToHistory }: Si
                   </ResponsiveContainer>
                 </div>
               ) : (
-                <div className="h-full flex items-center justify-center text-text-muted text-sm">Belum ada data</div>
+                <div className="h-full flex items-center justify-center text-text-muted text-sm">{t('report.noData')}</div>
               )}
             </div>
             
             <div className="flex-1">
-              <h5 className="text-xs font-extrabold text-text-main mb-3 px-1">Riwayat Pendapatan</h5>
+              <h5 className="text-xs font-extrabold text-text-main mb-3 px-1">{t('report.incomeHistory')}</h5>
               <div className="glass-card divide-y divide-sand border border-sand shadow-sm bg-white/50">
                 {recentIncomes.length > 0 ? (
                   recentIncomes.map(income => {
@@ -345,7 +350,7 @@ export function SimpleAccountingReport({ transactions, onNavigateToHistory }: Si
                           </div>
                           <div>
                             <p className="font-bold text-text-main text-xs truncate max-w-[120px]">{income.storeName || income.description}</p>
-                            <p className="text-[10px] text-text-muted mt-0.5">{format(parseISO(income.date), "dd MMM")}</p>
+                            <p className="text-[10px] text-text-muted mt-0.5">{format(parseISO(income.date), "dd MMM", { locale: dateLocale })}</p>
                           </div>
                         </div>
                         <div className="text-right">
@@ -355,7 +360,7 @@ export function SimpleAccountingReport({ transactions, onNavigateToHistory }: Si
                     );
                   })
                 ) : (
-                  <div className="p-4 text-center text-text-muted text-xs">Belum ada pendapatan</div>
+                  <div className="p-4 text-center text-text-muted text-xs">{t('report.noIncome')}</div>
                 )}
               </div>
             </div>
@@ -366,7 +371,7 @@ export function SimpleAccountingReport({ transactions, onNavigateToHistory }: Si
           onClick={() => onNavigateToHistory && onNavigateToHistory({ type: 'all' })}
           className="mt-8 glass-card w-full p-4 flex items-center justify-center gap-2 hover:bg-sand/30 transition-colors group"
         >
-          <span className="font-bold text-text-main text-sm">Lihat riwayat lengkap</span>
+          <span className="font-bold text-text-main text-sm">{t('report.viewFullHistory')}</span>
           <ArrowRight className="h-4 w-4 text-text-muted group-hover:text-clay transition-colors" />
         </button>
       </div>

@@ -4,6 +4,7 @@ import { Camera, Image as ImageIcon, Loader2 } from "lucide-react";
 import { Button } from "./ui/Button";
 import { parseReceiptWithAI } from "../lib/ai";
 import { Transaction } from "../types";
+import { useSettings } from "../hooks/useSettings";
 
 interface ScannerProps {
   onScanSuccess: (data: Partial<Transaction>) => void;
@@ -77,6 +78,7 @@ function mockParseReceipt(rawText: string): Partial<Transaction> {
 }
 
 export function Scanner({ onScanSuccess, addNotification }: ScannerProps) {
+  const { t, language } = useSettings();
   const webcamRef = useRef<Webcam>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -85,8 +87,8 @@ export function Scanner({ onScanSuccess, addNotification }: ScannerProps) {
   const processImage = async (base64Str: string, mimeType: string) => {
     setIsProcessing(true);
     addNotification({
-      title: "Membaca Nota",
-      message: "Sedang memindai gambar menggunakan OCR...",
+      title: t('scanner.readingReceipt'),
+      message: t('scanner.readingReceiptProgress'),
       type: "info"
     });
     
@@ -111,8 +113,8 @@ export function Scanner({ onScanSuccess, addNotification }: ScannerProps) {
       
       const snippet = rawText.length > 40 ? rawText.substring(0, 40) + "..." : rawText;
       addNotification({
-        title: "AI Sedang Menganalisis",
-        message: `AI sedang menganalisis isi teks acak dari OCR: "${snippet}"`,
+        title: t('scanner.aiAnalyzing'),
+        message: t('scanner.aiAnalyzingProgress').replace("{snippet}", snippet),
         type: "info"
       });
 
@@ -151,8 +153,10 @@ export function Scanner({ onScanSuccess, addNotification }: ScannerProps) {
       }).format(parsedResult.amount);
 
       addNotification({
-        title: "Struk Sudah Dianalisis",
-        message: `Struk sudah dianalisis! Total pengeluaran ${formattedAmount} di ${parsedResult.storeName}.`,
+        title: t('scanner.analyzedTitle'),
+        message: t('scanner.analyzedMsg')
+          .replace("{formattedAmount}", formattedAmount)
+          .replace("{storeName}", parsedResult.storeName || ""),
         type: "success"
       });
       
@@ -160,11 +164,11 @@ export function Scanner({ onScanSuccess, addNotification }: ScannerProps) {
     } catch (error) {
       console.error(error);
       addNotification({
-        title: "Scan Gagal",
-        message: "Gagal memproses gambar struk. Pastikan server OCR Python aktif.",
+        title: t('scanner.scanFailed'),
+        message: t('scanner.scanFailedMsg'),
         type: "warning"
       });
-      alert("Gagal memproses gambar. Pastikan server OCR Python menyala di port 8000.");
+      alert(t('scanner.ocrServerError'));
     } finally {
       setIsProcessing(false);
     }
@@ -203,8 +207,8 @@ export function Scanner({ onScanSuccess, addNotification }: ScannerProps) {
             <div className="absolute top-0 right-0 w-4 h-4 bg-nature-green rounded-full border-2 border-white"></div>
           </div>
         </div>
-        <h3 className="text-2xl font-extrabold text-text-main mt-6">Membaca Nota...</h3>
-        <p className="text-text-muted mt-2 text-center max-w-sm font-medium">Beri kami beberapa detik. AI sedang mengekstrak total harga, nama toko, dan item dari gambar Anda.</p>
+        <h3 className="text-2xl font-extrabold text-text-main mt-6">{t('scanner.readingReceiptHeader')}</h3>
+        <p className="text-text-muted mt-2 text-center max-w-sm font-medium">{t('scanner.readingReceiptDesc')}</p>
       </div>
     );
   }
@@ -216,8 +220,8 @@ export function Scanner({ onScanSuccess, addNotification }: ScannerProps) {
           <span className="w-2.5 h-2.5 rounded-full bg-clay animate-pulse"></span>
           AI Powered
         </div>
-        <h2 className="text-2xl md:text-3xl font-black text-text-main tracking-tight">Scan Nota / Struk</h2>
-        <p className="text-sm font-medium text-text-muted mt-2">Biarkan AI kami yang mencatat. Gunakan kamera atau pilih foto nota dari galeri Anda secara otomatis.</p>
+        <h2 className="text-2xl md:text-3xl font-black text-text-main tracking-tight">{t('scanner.title')}</h2>
+        <p className="text-sm font-medium text-text-muted mt-2">{t('scanner.subtitle')}</p>
       </div>
 
       <div className="p-6 md:p-8 flex flex-col items-center justify-center min-h-[350px]">
@@ -235,7 +239,7 @@ export function Scanner({ onScanSuccess, addNotification }: ScannerProps) {
               
               {/* Camera UI Overlay */}
               <div className="absolute inset-x-0 top-0 p-4 bg-gradient-to-b from-black/50 to-transparent flex justify-between items-center text-white">
-                <span className="text-xs font-bold uppercase tracking-wider backdrop-blur-md bg-black/30 px-3 py-1.5 rounded-full">Kamera</span>
+                <span className="text-xs font-bold uppercase tracking-wider backdrop-blur-md bg-black/30 px-3 py-1.5 rounded-full">{t('scanner.camera')}</span>
               </div>
               
               {/* Scanning brackets */}
@@ -262,7 +266,7 @@ export function Scanner({ onScanSuccess, addNotification }: ScannerProps) {
               className="mt-6 px-6 py-3 rounded-xl border-2 border-sand text-text-muted font-bold hover:bg-black/5 hover:text-text-main transition-all"
               onClick={() => setUseCamera(false)}
             >
-              Batalkan & Kembali
+              {t('scanner.cancelBack')}
             </button>
           </div>
         ) : (
@@ -276,8 +280,8 @@ export function Scanner({ onScanSuccess, addNotification }: ScannerProps) {
                 <Camera className="h-7 w-7 text-nature-green" />
               </div>
               <div className="mt-6 relative z-10">
-                <h3 className="font-extrabold text-text-main text-lg md:text-xl mb-1 md:mb-2">Gunakan Kamera</h3>
-                <p className="text-xs md:text-sm text-text-muted font-medium line-clamp-2 md:line-clamp-3">Memotret fisik nota atau struk secara langsung.</p>
+                <h3 className="font-extrabold text-text-main text-lg md:text-xl mb-1 md:mb-2">{t('scanner.useCamera')}</h3>
+                <p className="text-xs md:text-sm text-text-muted font-medium line-clamp-2 md:line-clamp-3">{t('scanner.useCameraDesc')}</p>
               </div>
             </button>
 
@@ -290,8 +294,8 @@ export function Scanner({ onScanSuccess, addNotification }: ScannerProps) {
                 <ImageIcon className="h-7 w-7 text-clay" />
               </div>
               <div className="mt-6 relative z-10">
-                <h3 className="font-extrabold text-text-main text-lg md:text-xl mb-1 md:mb-2">Pilih dari Galeri</h3>
-                <p className="text-xs md:text-sm text-text-muted font-medium line-clamp-2 md:line-clamp-3">Unggah tangkapan layar e-receipt atau foto struk.</p>
+                <h3 className="font-extrabold text-text-main text-lg md:text-xl mb-1 md:mb-2">{t('scanner.selectGallery')}</h3>
+                <p className="text-xs md:text-sm text-text-muted font-medium line-clamp-2 md:line-clamp-3">{t('scanner.selectGalleryDesc')}</p>
               </div>
             </button>
             <input 

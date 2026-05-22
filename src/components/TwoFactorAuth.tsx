@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Shield, Copy, Download, Key, AlertCircle, Check, ChevronRight } from 'lucide-react';
 import { Modal } from './ui/Modal';
 import { useAuth } from '../hooks/useAuth';
+import { useSettings } from '../hooks/useSettings';
 
 interface TwoFactorAuthProps {
   isOpen: boolean;
@@ -15,6 +16,7 @@ type Step = 'menu' | 'verifySetup' | 'backupCodes' | 'manageMethods' | 'disable'
 
 export function TwoFactorAuth({ isOpen, onClose, is2FAEnabled, onToggle2FA }: TwoFactorAuthProps) {
   const { token } = useAuth();
+  const { t } = useSettings();
   const [step, setStep] = useState<Step>(is2FAEnabled ? 'manageMethods' : 'menu');
   
   const [verificationCode, setVerificationCode] = useState('');
@@ -50,10 +52,10 @@ export function TwoFactorAuth({ isOpen, onClose, is2FAEnabled, onToggle2FA }: Tw
       if (res.ok) {
         setStep('verifySetup');
       } else {
-        setVerificationError('Gagal mengirim kode OTP ke email');
+        setVerificationError(t('twoFactor.failSendOtp'));
       }
     } catch (error) {
-      setVerificationError('Gagal mengirim kode verifikasi');
+      setVerificationError(t('twoFactor.failVerifyCode'));
     } finally {
       setLoading(false);
     }
@@ -77,10 +79,10 @@ export function TwoFactorAuth({ isOpen, onClose, is2FAEnabled, onToggle2FA }: Tw
         await onToggle2FA(true, 'email');
         setStep('backupCodes');
       } else {
-        setVerificationError(data.error || 'Kode tidak valid');
+        setVerificationError(data.error || t('twoFactor.invalidCode'));
       }
     } catch (error) {
-      setVerificationError('Terjadi kesalahan');
+      setVerificationError(t('twoFactor.errorOccurred'));
     } finally {
       setLoading(false);
     }
@@ -104,10 +106,10 @@ export function TwoFactorAuth({ isOpen, onClose, is2FAEnabled, onToggle2FA }: Tw
         setStep('menu');
         onClose();
       } else {
-        setPasswordError(data.error || 'Kata sandi salah');
+        setPasswordError(data.error || t('twoFactor.wrongPassword'));
       }
     } catch (error) {
-      setPasswordError('Terjadi kesalahan');
+      setPasswordError(t('twoFactor.errorOccurred'));
     } finally {
       setLoading(false);
     }
@@ -131,7 +133,7 @@ export function TwoFactorAuth({ isOpen, onClose, is2FAEnabled, onToggle2FA }: Tw
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Autentikasi Dua Faktor">
+    <Modal isOpen={isOpen} onClose={onClose} title={t('twoFactor.title')}>
       <div className="space-y-6">
         {/* MENU - Halaman Awal */}
         {step === 'menu' && (
@@ -139,8 +141,8 @@ export function TwoFactorAuth({ isOpen, onClose, is2FAEnabled, onToggle2FA }: Tw
             <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 flex gap-3">
               <AlertCircle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
               <div>
-                <p className="text-sm font-bold text-blue-900">Tingkatkan Keamanan Akun</p>
-                <p className="text-xs text-blue-700 mt-1">Autentikasi 2 Faktor menambah lapisan keamanan dengan mengirimkan kode OTP ke email Anda saat login.</p>
+                <p className="text-sm font-bold text-blue-900">{t('twoFactor.increaseSecurity')}</p>
+                <p className="text-xs text-blue-700 mt-1">{t('twoFactor.desc')}</p>
               </div>
             </div>
 
@@ -158,8 +160,8 @@ export function TwoFactorAuth({ isOpen, onClose, is2FAEnabled, onToggle2FA }: Tw
                     <Key className="w-5 h-5 text-nature-green" />
                   </div>
                   <div>
-                    <p className="font-bold text-text-main">{loading ? 'Memproses...' : 'Aktifkan via Email OTP'}</p>
-                    <p className="text-xs text-text-muted mt-0.5">Setup autentikasi keamanan untuk akun Anda</p>
+                    <p className="font-bold text-text-main">{loading ? t('twoFactor.processing') : t('twoFactor.enableEmailOtp')}</p>
+                    <p className="text-xs text-text-muted mt-0.5">{t('twoFactor.setupSec')}</p>
                   </div>
                 </div>
                 <ChevronRight className="w-5 h-5 text-text-muted" />
@@ -173,12 +175,12 @@ export function TwoFactorAuth({ isOpen, onClose, is2FAEnabled, onToggle2FA }: Tw
           <div className="space-y-4">
             <div className="bg-blue-50 border border-blue-200 rounded-2xl p-3">
               <p className="text-sm text-blue-900 font-medium">
-                Kode verifikasi telah dikirim ke alamat email Anda.
+                {t('twoFactor.otpSent')}
               </p>
             </div>
 
             <div>
-              <label className="text-xs font-bold text-text-main mb-2 block">Masukkan Kode 6 Digit:</label>
+              <label className="text-xs font-bold text-text-main mb-2 block">{t('twoFactor.enter6Digit')}</label>
               <input
                 type="text"
                 value={verificationCode}
@@ -199,7 +201,7 @@ export function TwoFactorAuth({ isOpen, onClose, is2FAEnabled, onToggle2FA }: Tw
               disabled={loading || verificationCode.length !== 6}
               className="w-full bg-clay text-white py-2.5 rounded-2xl font-bold text-sm hover:bg-clay/90 transition-colors disabled:opacity-50"
             >
-              {loading ? 'Memverifikasi...' : 'Verifikasi & Aktifkan 2FA'}
+              {loading ? t('twoFactor.verifying') : t('twoFactor.verifyEnable')}
             </button>
             <button
               onClick={() => {
@@ -209,7 +211,7 @@ export function TwoFactorAuth({ isOpen, onClose, is2FAEnabled, onToggle2FA }: Tw
               }}
               className="w-full border-2 border-sand text-text-main py-2.5 rounded-2xl font-bold text-sm hover:bg-sand/20 transition-colors"
             >
-              Batal
+              {t('twoFactor.cancel')}
             </button>
           </div>
         )}
@@ -220,14 +222,14 @@ export function TwoFactorAuth({ isOpen, onClose, is2FAEnabled, onToggle2FA }: Tw
             <div className="bg-green-50 border border-green-200 rounded-2xl p-4 flex gap-3">
               <Check className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
               <div>
-                <p className="text-sm font-bold text-green-900">2FA Berhasil Diaktifkan!</p>
-                <p className="text-xs text-green-700 mt-1">Simpan kode backup ini untuk akses emergency</p>
+                <p className="text-sm font-bold text-green-900">{t('twoFactor.successEnabled')}</p>
+                <p className="text-xs text-green-700 mt-1">{t('twoFactor.saveBackupCodes')}</p>
               </div>
             </div>
 
             <div className="bg-red-50 border border-red-200 rounded-2xl p-3">
               <p className="text-xs text-red-700 font-medium">
-                ⚠️ Jika Anda kehilangan akses ke email, gunakan kode ini untuk login. Simpan di tempat aman!
+                {t('twoFactor.backupWarning')}
               </p>
             </div>
 
@@ -249,7 +251,7 @@ export function TwoFactorAuth({ isOpen, onClose, is2FAEnabled, onToggle2FA }: Tw
               onClick={downloadBackupCodes}
               className="w-full flex items-center justify-center gap-2 bg-sand text-text-main py-2.5 rounded-2xl font-bold text-sm hover:bg-sand/80 transition-colors"
             >
-              <Download className="w-4 h-4" /> Download Kode Backup
+              <Download className="w-4 h-4" /> {t('twoFactor.downloadBackup')}
             </button>
 
             <button
@@ -259,7 +261,7 @@ export function TwoFactorAuth({ isOpen, onClose, is2FAEnabled, onToggle2FA }: Tw
               }}
               className="w-full bg-clay text-white py-2.5 rounded-2xl font-bold text-sm hover:bg-clay/90 transition-colors"
             >
-              Selesai
+              {t('twoFactor.done')}
             </button>
           </div>
         )}
@@ -270,8 +272,8 @@ export function TwoFactorAuth({ isOpen, onClose, is2FAEnabled, onToggle2FA }: Tw
             <div className="bg-green-50 border border-green-200 rounded-2xl p-4 flex gap-3">
               <Check className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
               <div>
-                <p className="text-sm font-bold text-green-900">2FA Aktif</p>
-                <p className="text-xs text-green-700 mt-1">Akun Anda dilindungi dengan autentikasi dua faktor</p>
+                <p className="text-sm font-bold text-green-900">{t('twoFactor.active')}</p>
+                <p className="text-xs text-green-700 mt-1">{t('twoFactor.protectedDesc')}</p>
               </div>
             </div>
 
@@ -279,8 +281,8 @@ export function TwoFactorAuth({ isOpen, onClose, is2FAEnabled, onToggle2FA }: Tw
               <div className="flex items-center gap-2">
                 <Key className="w-5 h-5 text-clay" />
                 <div>
-                  <p className="font-bold text-sm text-text-main">Metode Aktif: Email OTP</p>
-                  <p className="text-xs text-text-muted mt-1">Status: Terlindungi</p>
+                  <p className="font-bold text-sm text-text-main">{t('twoFactor.activeMethod')}</p>
+                  <p className="text-xs text-text-muted mt-1">{t('twoFactor.statusProtected')}</p>
                 </div>
               </div>
             </div>
@@ -290,8 +292,8 @@ export function TwoFactorAuth({ isOpen, onClose, is2FAEnabled, onToggle2FA }: Tw
               className="w-full flex items-center justify-between p-3 border-2 border-red-200 rounded-2xl hover:bg-red-50 transition-colors text-left"
             >
               <div>
-                <p className="font-bold text-sm text-red-600">Nonaktifkan 2FA</p>
-                <p className="text-xs text-red-500 mt-0.5">Kurangi lapisan keamanan akun</p>
+                <p className="font-bold text-sm text-red-600">{t('twoFactor.disable')}</p>
+                <p className="text-xs text-red-500 mt-0.5">{t('twoFactor.disableDesc')}</p>
               </div>
               <ChevronRight className="w-5 h-5 text-red-600" />
             </button>
@@ -300,7 +302,7 @@ export function TwoFactorAuth({ isOpen, onClose, is2FAEnabled, onToggle2FA }: Tw
               onClick={() => onClose()}
               className="w-full border-2 border-sand text-text-main py-2.5 rounded-2xl font-bold text-sm hover:bg-sand/20 transition-colors"
             >
-              Tutup
+              {t('twoFactor.close')}
             </button>
           </div>
         )}
@@ -311,18 +313,18 @@ export function TwoFactorAuth({ isOpen, onClose, is2FAEnabled, onToggle2FA }: Tw
             <div className="bg-red-50 border border-red-200 rounded-2xl p-4 flex gap-3">
               <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
               <div>
-                <p className="text-sm font-bold text-red-900">Nonaktifkan 2FA</p>
-                <p className="text-xs text-red-700 mt-1">Masukkan kata sandi untuk mengonfirmasi</p>
+                <p className="text-sm font-bold text-red-900">{t('twoFactor.disable')}</p>
+                <p className="text-xs text-red-700 mt-1">{t('twoFactor.enterPasswordConfirm')}</p>
               </div>
             </div>
 
             <div>
-              <label className="text-xs font-bold text-text-main mb-2 block">Kata Sandi Akun:</label>
+              <label className="text-xs font-bold text-text-main mb-2 block">{t('twoFactor.accountPassword')}</label>
               <input
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="Masukkan kata sandi Anda"
+                placeholder={t('twoFactor.enterYourPassword')}
                 className="w-full px-4 py-2.5 rounded-xl border-2 border-sand focus:border-clay outline-none text-sm"
               />
               {passwordError && (
@@ -335,13 +337,13 @@ export function TwoFactorAuth({ isOpen, onClose, is2FAEnabled, onToggle2FA }: Tw
               disabled={loading || !password}
               className="w-full bg-red-600 text-white py-2.5 rounded-2xl font-bold text-sm hover:bg-red-700 transition-colors disabled:opacity-50"
             >
-              {loading ? 'Memproses...' : 'Nonaktifkan 2FA'}
+              {loading ? t('twoFactor.processing') : t('twoFactor.disable')}
             </button>
             <button
               onClick={() => setStep('manageMethods')}
               className="w-full border-2 border-sand text-text-main py-2.5 rounded-2xl font-bold text-sm hover:bg-sand/20 transition-colors"
             >
-              Batal
+              {t('twoFactor.cancel')}
             </button>
           </div>
         )}

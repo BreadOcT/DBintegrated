@@ -10,6 +10,7 @@ import QRCode from "qrcode";
 import { authenticator } from "otplib";
 import crypto from "crypto";
 import PDFDocument from "pdfkit";
+import dns from "dns";
 
 dotenv.config();
 
@@ -121,7 +122,8 @@ if (process.env.DB_HOST && process.env.DB_USER && process.env.DB_NAME) {
 async function startServer() {
   const app = express();
   const PORT = 3000;
-  app.use(express.json());
+  app.use(express.json({ limit: '50mb' }));
+  app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
   // Middleware Auth
   const authenticateToken = (req: any, res: any, next: any) => {
@@ -185,7 +187,16 @@ async function startServer() {
 
         res.json({
           token,
-          user: { id: user.id, name: user.name, email: user.email, phone: user.phone }
+          user: {
+            id: user.id,
+            name: user.name,
+            email: user.email,
+            phone: user.phone,
+            photo: user.photo,
+            weekly_report: user.weekly_report,
+            bill_reminder: user.bill_reminder,
+            promo_offer: user.promo_offer
+          }
         });
       } else {
         if (email === "demo@example.com" && password === "demo") {
@@ -201,11 +212,148 @@ async function startServer() {
     }
   });
 
+  async function checkEmailActive(email: string): Promise<{ active: boolean; reason?: string }> {
+    // 1. Basic Regex syntax check
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return { active: false, reason: "Format email tidak valid" };
+    }
+
+    const parts = email.split('@');
+    const username = parts[0].toLowerCase();
+    const domain = parts[parts.length - 1]?.toLowerCase();
+    if (!domain) {
+      return { active: false, reason: "Domain email tidak ditemukan" };
+    }
+
+    // Block obvious joke / fake / temporary usernames
+    const fakeUsernames = [
+      'iseng', 'bodong', 'palsu', 'coba', 'test', 'testing',
+      'dummy', 'fake', 'asdf', 'qwerty', 'junk', 'spam', 'temp',
+      'admin', 'administrator', 'root', 'user', 'guest', 'mail',
+      'halo', 'hello', 'testing123', 'test123'
+    ];
+
+    // Substrings that are extremely likely to indicate a fake/joke email
+    const fakeSubstrings = ['iseng', 'bodong', 'palsu', 'dummy', 'qwerty', 'asdf', 'zxcv', 'junkmail', 'tempmail', 'trashmail'];
+
+    const isExactFake = fakeUsernames.includes(username);
+    const containsFake = fakeSubstrings.some(sub => username.includes(sub));
+    const isTestOrCobaPattern = 
+      /^(test|coba)/i.test(username) || 
+      /(test|coba)$/i.test(username) ||
+      /(test|coba)[-_.\d]/i.test(username) ||
+      /[-_.\d](test|coba)/i.test(username);
+    const hasRepeatedChars = /(\w)\1{3,}/.test(username);
+
+    if (isExactFake || containsFake || isTestOrCobaPattern || hasRepeatedChars) {
+      return { active: false, reason: "Silakan gunakan nama email aktif yang sungguhan, bukan email percobaan/iseng." };
+    }
+
+    // 2. Typos in common domains
+    const typos: Record<string, string> = {
+      'gamil.com': 'gmail.com',
+      'gmaill.com': 'gmail.com',
+      'yaho.com': 'yahoo.com',
+      'yhoo.com': 'yahoo.com',
+      'hotamil.com': 'hotmail.com',
+      'hotmai.com': 'hotmail.com',
+      'outlok.com': 'outlook.com'
+    };
+    if (domain in typos) {
+      return { active: false, reason: `Email tampaknya salah ketik. Apakah maksud Anda menggunakan domain ${typos[domain]}?` };
+    }
+
+    // 3. Known temporary/disposable/fake email domains
+    const disposableDomains = [
+      'tempmail', 'mailinator', '10minutemail', 'yopmail', 'guerrillamail',
+      'dispostable', 'getairmail', 'throwawaymail', 'temp-mail', 'trashmail',
+      'sharklasers', 'guerillamail', 'guerrillamailblock', 'pokemail',
+      'burnermail', 'proxydimid', 'maildrop', 'fakeinbox', 'tempmail.com',
+      'generator.email', 'tempail.com', 'tmail.ws', 'moakt.cc', 'dismail.de',
+      'iseng.com', 'bodong.com', 'palsu.com', 'coba.com', 'test.com', 'example.com',
+      'example.org', 'testmail.com', 'dummy.com', 'mailnesia.com', 'mailcatch.com'
+    ];
+
+    // Check if the domain itself contains any joke/fake email substrings
+    const fakeDomainSubstrings = ['iseng', 'bodong', 'palsu', 'coba', 'dummy', 'testmail', 'tempmail', 'mailinator'];
+    const domainContainsFake = fakeDomainSubstrings.some(sub => domain.includes(sub));
+
+    if (domainContainsFake || disposableDomains.some(dis => domain.includes(dis))) {
+      return { active: false, reason: "Penggunaan email sekali pakai (disposable/temp mail) atau email palsu tidak diizinkan. Silakan gunakan email aktif Anda." };
+    }
+
+    // 4. Determine internet connectivity first to distinguish offline sandbox vs. online system
+    const isOnline = await new Promise<boolean>((resolve) => {
+      const timeout = setTimeout(() => resolve(false), 2000);
+      dns.resolve('dns.google', 'A', (err, records) => {
+        clearTimeout(timeout);
+        if (err) {
+          resolve(false);
+        } else {
+          resolve(records && records.length > 0);
+        }
+      });
+    });
+
+    if (!isOnline) {
+      console.log(`System offline or isolated. Bypassing DNS MX check for domain: ${domain}`);
+      return { active: true };
+    }
+
+    // 5. DNS MX record check with timeout fallback when online
+    return new Promise((resolve) => {
+      // Timeout 4.5 seconds for domain resolution
+      const timeout = setTimeout(() => {
+        console.log(`Email verification timed out for domain: ${domain}. Fallback to true.`);
+        resolve({ active: true });
+      }, 4500);
+
+      dns.resolveMx(domain, (err, mxRecords) => {
+        if (err) {
+          // If we are online, check if the error is ENOTFOUND or ENODATA or ESERVFAIL (domain doesn't exist/dead)
+          if (err.code === 'ENOTFOUND' || err.code === 'ENODATA' || err.code === 'ESERVFAIL') {
+            // Fallback to A record check to be absolutely sure the domain is dead
+            dns.resolve(domain, 'A', (errA, aRecords) => {
+              clearTimeout(timeout);
+              if (errA || !aRecords || aRecords.length === 0) {
+                return resolve({ active: false, reason: "Domain email tidak aktif atau tidak terdaftar. Silakan gunakan email aktif yang valid." });
+              }
+              resolve({ active: true });
+            });
+          } else {
+            // Other network issues -> allow fallback
+            clearTimeout(timeout);
+            resolve({ active: true });
+          }
+        } else if (!mxRecords || mxRecords.length === 0) {
+          dns.resolve(domain, 'A', (errA, aRecords) => {
+            clearTimeout(timeout);
+            if (errA || !aRecords || aRecords.length === 0) {
+              resolve({ active: false, reason: "Domain email tidak aktif atau tidak terdaftar. Silakan gunakan email aktif yang valid." });
+            } else {
+              resolve({ active: true });
+            }
+          });
+        } else {
+          clearTimeout(timeout);
+          resolve({ active: true });
+        }
+      });
+    });
+  }
+
   app.post("/api/auth/register", async (req, res) => {
     try {
       const { email, password, name } = req.body;
       if (!email || !password || !name) {
         return res.status(400).json({ error: "Missing email, password, or name" });
+      }
+
+      // Check if email is active/valid
+      const emailCheck = await checkEmailActive(email);
+      if (!emailCheck.active) {
+        return res.status(400).json({ error: emailCheck.reason });
       }
 
       const hashedPassword = await bcrypt.hash(password, 10);
@@ -353,7 +501,7 @@ async function startServer() {
 
   app.get("/api/auth/me", authenticateToken, async (req: any, res: any) => {
     if (dbPool) {
-      const [rows]: any = await dbPool.execute('SELECT id, name, email, phone, photo FROM users WHERE id = ?', [req.user.id]);
+      const [rows]: any = await dbPool.execute('SELECT id, name, email, phone, photo, weekly_report, bill_reminder, promo_offer FROM users WHERE id = ?', [req.user.id]);
       if (rows.length > 0) {
         res.json(rows[0]);
       } else {
@@ -367,8 +515,23 @@ async function startServer() {
   app.put("/api/auth/me", authenticateToken, async (req: any, res: any) => {
     if (dbPool) {
       try {
-        const { name, phone, photo } = req.body;
-        await dbPool.execute('UPDATE users SET name = ?, phone = ?, photo = ? WHERE id = ?', [name, phone || null, photo || null, req.user.id]);
+        const { name, phone, photo, weekly_report, bill_reminder, promo_offer } = req.body;
+
+        const updates: string[] = [];
+        const params: any[] = [];
+
+        if (name !== undefined) { updates.push("name = ?"); params.push(name); }
+        if (phone !== undefined) { updates.push("phone = ?"); params.push(phone || null); }
+        if (photo !== undefined) { updates.push("photo = ?"); params.push(photo || null); }
+        if (weekly_report !== undefined) { updates.push("weekly_report = ?"); params.push(weekly_report); }
+        if (bill_reminder !== undefined) { updates.push("bill_reminder = ?"); params.push(bill_reminder); }
+        if (promo_offer !== undefined) { updates.push("promo_offer = ?"); params.push(promo_offer); }
+
+        if (updates.length > 0) {
+          params.push(req.user.id);
+          await dbPool.execute(`UPDATE users SET ${updates.join(", ")} WHERE id = ?`, params);
+        }
+
         res.json({ message: "Profile updated successfully" });
       } catch (error) {
         console.error("Profile update error:", error);

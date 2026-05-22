@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { format, parseISO } from "date-fns";
+import { id, enUS } from "date-fns/locale";
 import { Transaction } from "../types";
 import { useSettings } from "../hooks/useSettings";
 import { 
@@ -38,7 +39,7 @@ export const getCategoryStyle = (category: string, type: 'income' | 'expense') =
 };
 
 export function History({ transactions, onDelete, onEdit, initialFilters }: HistoryProps) {
-  const { formatCurrency } = useSettings();
+  const { formatCurrency, t, language } = useSettings();
   const [filterType, setFilterType] = useState<"all" | "income" | "expense">(initialFilters?.type || "all");
   const [filterCategory, setFilterCategory] = useState<string>("all");
   const [startDate, setStartDate] = useState<string>(initialFilters?.startDate || "");
@@ -74,15 +75,19 @@ export function History({ transactions, onDelete, onEdit, initialFilters }: Hist
   const categories = Array.from(new Set(transactions.map(t => t.category)));
 
   const exportCSV = () => {
-    const headers = ["ID", "Tanggal", "Tipe", "Kategori", "Keterangan", "Nama Toko", "Nominal"];
-    const rows = filtered.map(t => [
-      t.id,
-      t.date,
-      t.type === "income" ? "Pemasukan" : "Pengeluaran",
-      t.category,
-      `"${t.description.replace(/"/g, '""')}"`,
-      `"${(t.storeName || "").replace(/"/g, '""')}"`,
-      t.amount
+    const headers = language === 'en'
+      ? ["ID", "Date", "Type", "Category", "Description", "Store Name", "Amount"]
+      : ["ID", "Tanggal", "Tipe", "Kategori", "Keterangan", "Nama Toko", "Nominal"];
+    const rows = filtered.map(tTrx => [
+      tTrx.id,
+      tTrx.date,
+      tTrx.type === "income"
+        ? (language === 'en' ? "Income" : "Pemasukan")
+        : (language === 'en' ? "Expense" : "Pengeluaran"),
+      t(tTrx.category),
+      `"${tTrx.description.replace(/"/g, '""')}"`,
+      `"${(tTrx.storeName || "").replace(/"/g, '""')}"`,
+      tTrx.amount
     ]);
     
     const csvContent = [headers.join(","), ...rows.map(r => r.join(","))].join("\n");
@@ -91,7 +96,10 @@ export function History({ transactions, onDelete, onEdit, initialFilters }: Hist
     
     const link = document.createElement("a");
     link.href = url;
-    link.setAttribute("download", `laporan_keuangan_${format(new Date(), "yyyyMMdd")}.csv`);
+    const filename = language === 'en'
+      ? `financial_report_${format(new Date(), "yyyyMMdd")}.csv`
+      : `laporan_keuangan_${format(new Date(), "yyyyMMdd")}.csv`;
+    link.setAttribute("download", filename);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -118,12 +126,12 @@ export function History({ transactions, onDelete, onEdit, initialFilters }: Hist
     <>
       <div className="pt-2 pb-24 max-w-lg mx-auto lg:max-w-none">
         <div className="flex justify-between items-center mb-6 px-1">
-        <h2 className="text-xl font-extrabold text-text-main">Riwayat Transaksi</h2>
+        <h2 className="text-xl font-extrabold text-text-main">{t('history.title')}</h2>
         <button 
           className="flex items-center gap-1 px-3 py-1.5 text-xs font-bold rounded-full transition-colors text-clay bg-clay/10 hover:bg-clay/20"
           onClick={exportCSV}
         >
-          <Download className="h-3 w-3"/> Ekspor
+          <Download className="h-3 w-3"/> {t('history.export')}
         </button>
       </div>
       
@@ -140,7 +148,7 @@ export function History({ transactions, onDelete, onEdit, initialFilters }: Hist
                   : "bg-bg-card text-text-muted border border-sand hover:border-clay"
               }`}
             >
-              {type === "all" ? "Semua" : type === "income" ? "Pemasukan" : "Pengeluaran"}
+              {type === "all" ? t('history.all') : type === "income" ? t('dashboard.income') : t('dashboard.expense')}
             </button>
           ))}
         </div>
@@ -149,7 +157,7 @@ export function History({ transactions, onDelete, onEdit, initialFilters }: Hist
           onClick={() => setIsFilterOpen(true)}
           className="flex items-center justify-center gap-2 bg-bg-card border border-sand rounded-xl px-4 py-2.5 text-text-main font-bold hover:bg-sand/30 transition-colors w-full sm:w-auto"
         >
-          <Filter className="w-4 h-4 text-clay" /> Cari / Filter Berdasarkan
+          <Filter className="w-4 h-4 text-clay" /> {t('history.searchFilter')}
           {(filterCategory !== "all" || startDate || endDate) && (
             <span className="w-2 h-2 rounded-full bg-clay ml-1"></span>
           )}
@@ -165,7 +173,7 @@ export function History({ transactions, onDelete, onEdit, initialFilters }: Hist
               exit={{ opacity: 0 }}
               className="py-12 text-center text-text-muted text-sm bg-sand/20 rounded-2xl border border-dashed border-sand"
             >
-              Belum ada transaksi untuk filter ini.
+              {t('history.noTransactions')}
             </motion.div>
           ) : (
             groupedDates.map(date => {
@@ -184,7 +192,7 @@ export function History({ transactions, onDelete, onEdit, initialFilters }: Hist
                 >
                   <div className="flex justify-between items-end border-b border-sand pb-2 mb-3">
                     <h3 className="text-sm font-extrabold text-text-main">
-                      {format(parseISO(date), "dd MMMM yyyy")}
+                      {format(parseISO(date), "dd MMMM yyyy", { locale: language === 'en' ? enUS : id })}
                     </h3>
                     <div className="flex gap-3 text-[10px] font-bold">
                       {totalIncome > 0 && <span className="text-nature-green">+{formatCurrency(totalIncome)}</span>}
@@ -193,13 +201,13 @@ export function History({ transactions, onDelete, onEdit, initialFilters }: Hist
                   </div>
                   
                   <div className="space-y-3">
-                    {dateTransactions.map(t => {
-                      const { icon: Icon, color, bg } = getCategoryStyle(t.category, t.type as 'income' | 'expense');
-                      const hasItems = t.items && t.items.length > 0;
-                      const isExpanded = !!expandedTrx[t.id];
+                    {dateTransactions.map(tTrx => {
+                      const { icon: Icon, color, bg } = getCategoryStyle(tTrx.category, tTrx.type as 'income' | 'expense');
+                      const hasItems = tTrx.items && tTrx.items.length > 0;
+                      const isExpanded = !!expandedTrx[tTrx.id];
                       return (
                         <motion.div 
-                          key={`card-${t.id}`}
+                          key={`card-${tTrx.id}`}
                           initial={{ opacity: 0, scale: 0.98 }}
                           animate={{ opacity: 1, scale: 1 }}
                           exit={{ opacity: 0, x: -20 }}
@@ -212,18 +220,18 @@ export function History({ transactions, onDelete, onEdit, initialFilters }: Hist
                                 <Icon className="w-5 h-5 sm:w-6 sm:h-6" />
                               </div>
                               <div className="flex flex-col flex-1 min-w-0">
-                                <p className={`text-[9px] sm:text-[10px] mb-0.5 uppercase tracking-wider font-semibold truncate ${color}`}>{t.category}</p>
-                                <h4 className="font-bold text-text-main text-xs sm:text-sm truncate">{t.description}</h4>
+                                <p className={`text-[9px] sm:text-[10px] mb-0.5 uppercase tracking-wider font-semibold truncate ${color}`}>{t(tTrx.category)}</p>
+                                <h4 className="font-bold text-text-main text-xs sm:text-sm truncate">{tTrx.description}</h4>
                                 <div className="flex items-center gap-1.5 flex-wrap">
-                                  {t.storeName && (
-                                    <span className="text-[9px] sm:text-[10px] text-text-muted mt-0.5 font-semibold bg-sand/35 px-1.5 py-0.5 rounded truncate">{t.storeName}</span>
+                                  {tTrx.storeName && (
+                                    <span className="text-[9px] sm:text-[10px] text-text-muted mt-0.5 font-semibold bg-sand/35 px-1.5 py-0.5 rounded truncate">{tTrx.storeName}</span>
                                   )}
                                   {hasItems && (
                                     <button 
-                                      onClick={() => toggleExpand(t.id)} 
+                                      onClick={() => toggleExpand(tTrx.id)} 
                                       className="inline-flex items-center gap-0.5 text-[9px] sm:text-[10px] font-bold text-clay bg-clay/10 hover:bg-clay/20 px-1.5 py-0.5 rounded transition-all mt-0.5 active:scale-95"
                                     >
-                                      {isExpanded ? "Sembunyikan Rincian" : `Rincian (${t.items.length})`}
+                                      {isExpanded ? t('history.hideDetails') : `${t('history.details')} (${tTrx.items.length})`}
                                       {isExpanded ? <ChevronUp className="w-2.5 h-2.5" /> : <ChevronDown className="w-2.5 h-2.5" />}
                                     </button>
                                   )}
@@ -231,14 +239,14 @@ export function History({ transactions, onDelete, onEdit, initialFilters }: Hist
                               </div>
                             </div>
                             <div className="flex flex-col items-end flex-shrink-0 pl-1 border-l border-sand/30">
-                              <div className={`font-bold text-[11px] sm:text-sm break-all max-w-[120px] text-right mb-1.5 ${t.type === 'income' ? 'text-nature-green' : 'text-clay'}`}>
-                                {t.type === 'income' ? '+' : '-'}{formatCurrency(t.amount)}
+                              <div className={`font-bold text-[11px] sm:text-sm break-all max-w-[120px] text-right mb-1.5 ${tTrx.type === 'income' ? 'text-nature-green' : 'text-clay'}`}>
+                                {tTrx.type === 'income' ? '+' : '-'}{formatCurrency(tTrx.amount)}
                               </div>
                               <div className="flex items-center gap-1">
                                 {onEdit && (
-                                  <button onClick={() => onEdit(t)} className="text-text-muted hover:text-clay p-1 rounded-md bg-sand/30 hover:bg-sand/50 transition-colors"><Edit className="h-3.5 w-3.5" /></button>
+                                  <button onClick={() => onEdit(tTrx)} className="text-text-muted hover:text-clay p-1 rounded-md bg-sand/30 hover:bg-sand/50 transition-colors"><Edit className="h-3.5 w-3.5" /></button>
                                 )}
-                                <button onClick={() => setDeleteId(t.id)} className="text-text-muted hover:text-rose-600 p-1 rounded-md bg-sand/30 hover:bg-rose-100 transition-colors"><Trash2 className="h-3.5 w-3.5" /></button>
+                                <button onClick={() => setDeleteId(tTrx.id)} className="text-text-muted hover:text-rose-600 p-1 rounded-md bg-sand/30 hover:bg-rose-100 transition-colors"><Trash2 className="h-3.5 w-3.5" /></button>
                               </div>
                             </div>
                           </div>
@@ -252,7 +260,7 @@ export function History({ transactions, onDelete, onEdit, initialFilters }: Hist
                               className="mt-3 pt-3 border-t border-sand/30 pl-10 sm:pl-16 pr-1"
                             >
                               <div className="space-y-1.5">
-                                {t.items!.map((item, idx) => (
+                                {tTrx.items!.map((item, idx) => (
                                   <div key={idx} className="flex justify-between items-center text-[11px] sm:text-xs text-text-main font-medium py-0.5 border-b border-dashed border-sand/30 last:border-0">
                                     <span className="flex items-center gap-1 text-text-main truncate max-w-[150px] sm:max-w-xs">
                                       <span className="w-1.5 h-1.5 rounded-full bg-clay/60 shrink-0"></span>
@@ -304,13 +312,13 @@ export function History({ transactions, onDelete, onEdit, initialFilters }: Hist
                     <X className="h-5 w-5" />
                   </button>
                 </div>
-                <h3 className="text-xl font-bold text-text-main mb-2">Hapus Transaksi?</h3>
+                <h3 className="text-xl font-bold text-text-main mb-2">{t('history.deleteTitle')}</h3>
                 <p className="text-text-muted text-sm mb-6">
-                  Tindakan ini tidak dapat dibatalkan. Transaksi akan dihapus permanen dari riwayat Anda.
+                  {t('history.deleteConfirm')}
                 </p>
                 <div className="flex gap-3 w-full">
-                  <Button variant="outline" className="flex-1" onClick={() => setDeleteId(null)}>Batal</Button>
-                  <Button variant="danger" className="flex-1" onClick={confirmDelete}>Hapus</Button>
+                  <Button variant="outline" className="flex-1" onClick={() => setDeleteId(null)}>{t('history.cancel')}</Button>
+                  <Button variant="danger" className="flex-1" onClick={confirmDelete}>{t('history.delete')}</Button>
                 </div>
               </motion.div>
             </div>
@@ -339,7 +347,7 @@ export function History({ transactions, onDelete, onEdit, initialFilters }: Hist
                 <div className="w-12 h-1.5 bg-sand rounded-full mx-auto mb-6" />
                 <div className="flex justify-between items-center mb-6">
                   <h3 className="text-xl font-extrabold text-text-main flex items-center gap-2">
-                    <Filter className="w-5 h-5 text-clay" /> Cari & Filter
+                    <Filter className="w-5 h-5 text-clay" /> {t('history.searchAndFilter')}
                   </h3>
                   <button onClick={() => setIsFilterOpen(false)} className="p-2 bg-sand/50 rounded-full text-text-muted hover:text-text-main transition-colors">
                     <X className="w-5 h-5" />
@@ -348,21 +356,21 @@ export function History({ transactions, onDelete, onEdit, initialFilters }: Hist
                 
                 <div className="space-y-5 mb-8">
                   <div>
-                    <label className="block text-sm font-bold text-text-muted mb-2">Pilih Kategori</label>
+                    <label className="block text-sm font-bold text-text-muted mb-2">{t('history.selectCategory')}</label>
                     <select 
                       value={filterCategory}
                       onChange={(e) => setFilterCategory(e.target.value)}
                       className="w-full bg-bg-card border-2 border-sand rounded-xl px-4 py-3 text-text-main font-bold focus:outline-none focus:border-clay transition-colors"
                     >
-                      <option value="all">Semua Kategori</option>
+                      <option value="all">{t('history.allCategories')}</option>
                       {categories.map(c => (
-                        <option key={c} value={c}>{c}</option>
+                        <option key={c} value={c}>{t(c)}</option>
                       ))}
                     </select>
                   </div>
                   
                   <div>
-                    <label className="block text-sm font-bold text-text-muted mb-2">Rentang Tanggal</label>
+                    <label className="block text-sm font-bold text-text-muted mb-2">{t('history.dateRange')}</label>
                     <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-4">
                       <input 
                         type="date" 
@@ -390,13 +398,13 @@ export function History({ transactions, onDelete, onEdit, initialFilters }: Hist
                     }}
                     className="w-full sm:w-auto px-4 sm:px-6 py-3.5 sm:py-4 rounded-xl text-text-main font-bold hover:bg-sand/50 transition-colors border-2 border-transparent hover:border-sand"
                   >
-                    Reset
+                    {t('history.reset')}
                   </button>
                   <button 
                     onClick={() => setIsFilterOpen(false)}
                     className="w-full sm:flex-1 bg-gradient-to-r from-clay to-nature-orange text-white font-bold py-3.5 sm:py-4 rounded-xl shadow-lg hover:shadow-xl hover:opacity-90 transition-all active:scale-[0.98]"
                   >
-                    Terapkan Filter
+                    {t('history.applyFilter')}
                   </button>
                 </div>
               </div>

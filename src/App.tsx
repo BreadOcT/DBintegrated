@@ -19,6 +19,7 @@ import { Profile } from "./components/Profile";
 import { Settings } from "./components/Settings";
 import { ForgotPassword } from "./components/ForgotPassword";
 import { ResetPassword } from "./components/ResetPassword";
+import { useSettings } from "./hooks/useSettings";
 
 export default function App() {
   const { user, isLoading: isAuthLoading, logout } = useAuth();
@@ -27,6 +28,7 @@ export default function App() {
   const [resetToken, setResetToken] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("dashboard");
   const tState = useTransactions();
+  const { formatCurrency, language } = useSettings();
   
   // State for AI scanned values before they are saved
   const [scannedData, setScannedData] = useState<Partial<Transaction> | null>(null);
@@ -67,35 +69,36 @@ export default function App() {
 
   const handleTransactionSubmit = async (data: Omit<Transaction, "id">) => {
     try {
-      const formattedAmount = new Intl.NumberFormat("id-ID", {
-        style: "currency",
-        currency: "IDR",
-        minimumFractionDigits: 0,
-        maximumFractionDigits: 0,
-      }).format(data.amount);
+      const formattedAmount = formatCurrency(data.amount);
 
       if (editingId) {
         await tState.updateTransaction(editingId, data);
-        setToastMessage("Berhasil memperbarui transaksi!");
+        setToastMessage(language === 'en' ? "Transaction updated successfully!" : "Berhasil memperbarui transaksi!");
         addNotification({
-          title: "Transaksi Diperbarui",
-          message: `Transaksi "${data.description}" senilai ${formattedAmount} telah berhasil diperbarui.`,
+          title: language === 'en' ? "Transaction Updated" : "Transaksi Diperbarui",
+          message: language === 'en' 
+            ? `Transaction "${data.description}" of ${formattedAmount} has been successfully updated.`
+            : `Transaksi "${data.description}" senilai ${formattedAmount} telah berhasil diperbarui.`,
           type: "success"
         });
       } else {
         await tState.addTransaction(data);
-        setToastMessage("Transaksi berhasil disimpan!");
+        setToastMessage(language === 'en' ? "Transaction saved successfully!" : "Transaksi berhasil disimpan!");
         
         if (scannedData) {
           addNotification({
-            title: "Transaksi Disimpan (Scan AI)",
-            message: `Transaksi "${data.description}" senilai ${formattedAmount} dari scan struk berhasil disimpan ke riwayat.`,
+            title: language === 'en' ? "Transaction Saved (AI Scan)" : "Transaksi Disimpan (Scan AI)",
+            message: language === 'en'
+              ? `Transaction "${data.description}" of ${formattedAmount} from receipt scan has been saved.`
+              : `Transaksi "${data.description}" senilai ${formattedAmount} dari scan struk berhasil disimpan ke riwayat.`,
             type: "success"
           });
         } else {
           addNotification({
-            title: "Transaksi Manual Disimpan",
-            message: `Transaksi manual "${data.description}" senilai ${formattedAmount} berhasil disimpan ke riwayat.`,
+            title: language === 'en' ? "Manual Transaction Saved" : "Transaksi Manual Disimpan",
+            message: language === 'en'
+              ? `Manual transaction "${data.description}" of ${formattedAmount} has been saved.`
+              : `Transaksi manual "${data.description}" senilai ${formattedAmount} berhasil disimpan ke riwayat.`,
             type: "success"
           });
         }
@@ -104,10 +107,12 @@ export default function App() {
       setEditingId(null);
       setActiveTab("history"); // Redirect to history after adding
     } catch (error) {
-      setToastMessage("Gagal menyimpan transaksi! Silakan coba lagi.");
+      setToastMessage(language === 'en' ? "Failed to save transaction! Please try again." : "Gagal menyimpan transaksi! Silakan coba lagi.");
       addNotification({
-        title: "Gagal Menyimpan Transaksi",
-        message: "Terjadi kesalahan saat menyimpan transaksi ke database.",
+        title: language === 'en' ? "Failed to Save Transaction" : "Gagal Menyimpan Transaksi",
+        message: language === 'en'
+          ? "An error occurred while saving transaction to database."
+          : "Terjadi kesalahan saat menyimpan transaksi ke database.",
         type: "warning"
       });
     }
@@ -140,7 +145,7 @@ export default function App() {
   };
 
   if (isAuthLoading) {
-    return <div className="h-screen w-screen flex items-center justify-center bg-bg-base text-clay font-bold">Memuat...</div>;
+    return <div className="h-screen w-screen flex items-center justify-center bg-bg-base text-clay font-bold">{language === 'en' ? 'Loading...' : 'Memuat...'}</div>;
   }
 
   if (authState === 'landing' || !user) {

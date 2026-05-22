@@ -18,6 +18,7 @@ import {
 import { cn } from "../lib/utils";
 import khbLogo from "../assets/gambar/LOGO KHB.png";
 import { useAuth } from "../hooks/useAuth";
+import { useSettings } from "../hooks/useSettings";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -29,30 +30,16 @@ interface LayoutProps {
 
 export function Layout({ children, activeTab, onTabChange, onLogout, unreadNotificationsCount = 0 }: LayoutProps) {
   const { user } = useAuth();
+  const { theme, toggleTheme, t } = useSettings();
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const [theme, setTheme] = useState<"light" | "dark">(
-    () => (localStorage.getItem("theme") as "light" | "dark") || "light",
-  );
-
-  useEffect(() => {
-    if (theme === "dark") {
-      document.documentElement.classList.add("dark");
-    } else {
-      document.documentElement.classList.remove("dark");
-    }
-    localStorage.setItem("theme", theme);
-  }, [theme]);
-
-  const toggleTheme = () =>
-    setTheme((prev) => (prev === "light" ? "dark" : "light"));
 
   const navItems = [
-    { id: "dashboard", label: "Beranda", icon: Home },
-    { id: "history", label: "Riwayat", icon: Search },
-    { id: "scan", label: "Scan", icon: Camera },
-    { id: "add", label: "Input", icon: PlusCircle },
-    { id: "report", label: "Laporan", icon: PieChart },
+    { id: "dashboard", label: t('layout.home'), icon: Home },
+    { id: "history", label: t('layout.history'), icon: Search },
+    { id: "scan", label: t('layout.scan'), icon: Camera },
+    { id: "add", label: t('layout.input'), icon: PlusCircle },
+    { id: "report", label: t('layout.report'), icon: PieChart },
   ];
 
   return (
@@ -90,12 +77,13 @@ export function Layout({ children, activeTab, onTabChange, onLogout, unreadNotif
           </nav>
         </div>
         <div className="p-4 border border-sand bg-sand/30 rounded-2xl w-52">
-          <p className="text-xs text-text-muted truncate">Verified Member</p>
+          <p className="text-xs text-text-muted truncate">{t('layout.verifiedMember')}</p>
           <p className="font-bold text-sm text-text-main uppercase truncate">
-            Usaha Mikro
+            {t('layout.microEnterprise')}
           </p>
         </div>
       </aside>
+
 
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col h-full overflow-hidden">
@@ -124,10 +112,10 @@ export function Layout({ children, activeTab, onTabChange, onLogout, unreadNotif
                 </div>
                 <div className="hidden sm:flex flex-col justify-center">
                   <span className="text-[11px] text-text-muted font-bold tracking-wide uppercase mb-0.5">
-                    Selamat datang,
+                    {t('layout.welcome')}
                   </span>
                   <span className="text-sm font-extrabold text-text-main leading-tight flex items-center gap-1.5 line-clamp-1 max-w-[120px]">
-                    {user?.name || "Pengguna"}
+                    {user?.name || (theme === "dark" ? "User" : "Pengguna")}
                   </span>
                 </div>
                 <ChevronDown className="h-4 w-4 text-text-muted hidden sm:block" />
@@ -149,7 +137,7 @@ export function Layout({ children, activeTab, onTabChange, onLogout, unreadNotif
                       className="absolute top-14 left-0 sm:left-auto sm:right-0 mt-2 w-56 bg-bg-card rounded-2xl shadow-xl border border-sand z-50 overflow-hidden"
                     >
                       <div className="p-4 border-b border-sand bg-bg-base/50">
-                        <p className="text-sm font-bold text-text-main line-clamp-1">{user?.name || "Pengguna"}</p>
+                        <p className="text-sm font-bold text-text-main line-clamp-1">{user?.name || (theme === "dark" ? "User" : "Pengguna")}</p>
                         <p className="text-xs text-text-muted mt-0.5 truncate">{user?.email || "pengguna@example.com"}</p>
                       </div>
                       <div className="p-2 space-y-1">
@@ -160,7 +148,7 @@ export function Layout({ children, activeTab, onTabChange, onLogout, unreadNotif
                           }}
                           className="w-full text-left px-3 py-2 text-sm font-bold text-text-main hover:bg-sand/30 rounded-xl transition-colors flex items-center gap-2"
                         >
-                          <User className="h-4 w-4 text-text-muted" /> Profil Saya
+                          <User className="h-4 w-4 text-text-muted" /> {t('profile.title')}
                         </button>
                         <button 
                           onClick={() => {
@@ -169,7 +157,7 @@ export function Layout({ children, activeTab, onTabChange, onLogout, unreadNotif
                           }}
                           className="w-full text-left px-3 py-2 text-sm font-bold text-text-main hover:bg-sand/30 rounded-xl transition-colors flex items-center gap-2"
                         >
-                          <Settings className="h-4 w-4 text-text-muted" /> Pengaturan
+                          <Settings className="h-4 w-4 text-text-muted" /> {t('settings.title')}
                         </button>
                         <button 
                           onClick={() => {
@@ -178,7 +166,7 @@ export function Layout({ children, activeTab, onTabChange, onLogout, unreadNotif
                           }}
                           className="w-full text-left px-3 py-2 text-sm font-bold text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-xl transition-colors flex items-center gap-2"
                         >
-                          <LogOut className="h-4 w-4 text-red-400" /> Keluar
+                          <LogOut className="h-4 w-4 text-red-400" /> {t('layout.logout')}
                         </button>
                       </div>
                     </motion.div>
