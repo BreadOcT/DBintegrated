@@ -45,7 +45,6 @@ export function Profile({ onLogout }: ProfileProps) {
 
   // device yang terhubung 
   const [devices, setDevices] = useState<any[]>([]);
-
   useEffect(() => {
     if (user) {
       setProfileName(user.name);
@@ -60,6 +59,9 @@ export function Profile({ onLogout }: ProfileProps) {
       if (user.weekly_report !== undefined) setWeeklyReport(Boolean(user.weekly_report));
       if (user.bill_reminder !== undefined) setBillReminder(Boolean(user.bill_reminder));
       if (user.promo_offer !== undefined) setPromoOffer(Boolean(user.promo_offer));
+      
+      // Load status 2FA dari database
+      if (user.two_factor_enabled !== undefined) setIs2FAEnabled(Boolean(user.two_factor_enabled));
 
       // Ambil data perangkat dari backend asli
       fetchDevices();

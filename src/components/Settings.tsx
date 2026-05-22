@@ -57,9 +57,31 @@ export function Settings() {
     }
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     setActiveModal('none');
-    showToast(t('settings.deleteSuccess'));
+    showToast(language === 'en' ? 'Deleting all data...' : 'Menghapus semua data...');
+
+    try {
+      const res = await fetch('/api/auth/clear-data', {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (res.ok) {
+        showToast(language === 'en' ? 'All data successfully deleted!' : 'Semua data berhasil dihapus!');
+        setTimeout(() => {
+          window.location.reload();
+        }, 1500);
+      } else {
+        const errData = await res.json();
+        showToast(errData.error || (language === 'en' ? 'Failed to delete data' : 'Gagal menghapus data'));
+      }
+    } catch (err) {
+      console.error(err);
+      showToast(t('settings.networkError'));
+    }
   };
 
   return (

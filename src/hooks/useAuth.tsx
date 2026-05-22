@@ -9,6 +9,7 @@ export interface User {
   weekly_report?: boolean | number;
   bill_reminder?: boolean | number;
   promo_offer?: boolean | number;
+  two_factor_enabled?: boolean;
 }
 
 interface AuthContextType {

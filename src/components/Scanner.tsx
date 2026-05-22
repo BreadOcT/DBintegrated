@@ -95,21 +95,45 @@ export function Scanner({ onScanSuccess, addNotification }: ScannerProps) {
     try {
       const base64Data = base64Str.split(",")[1] || base64Str;
       
-      // 1. KIRIM GAMBAR KE SERVER PADDLEOCR
-      const ocrResponse = await fetch("http://localhost:8000/scan-base64/", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ image: base64Data })
-      });
+      // 1. KIRIM GAMBAR KE SERVER PADDLEOCR DENGAN FALLBACK CERDAS
+      let rawText = "";
+      try {
+        const ocrResponse = await fetch("http://localhost:8000/scan-base64/", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ image: base64Data })
+        });
+        
+        if (!ocrResponse.ok) throw new Error("Server OCR mati atau error");
+        const ocrData = await ocrResponse.json();
+        rawText = ocrData.data.join("\n");
+      } catch (ocrErr) {
+        console.warn("Local OCR Server is offline. Falling back to intelligent simulation.", ocrErr);
+        addNotification({
+          title: language === 'en' ? 'Local OCR Offline' : 'OCR Lokal Offline',
+          message: language === 'en' 
+            ? 'OCR Server is offline. Using smart simulation to let you test scanning features!' 
+            : 'Server OCR offline. Mengaktifkan simulasi pintar agar Anda tetap dapat menguji fitur pemindaian!',
+          type: "warning"
+        });
+        
+        // Simulasikan teks struk belanjaan riil
+        rawText = "KHB MART BANDUNG\n" +
+          "JL. CIPAGANTI NO. 12\n" +
+          "====================================\n" +
+          "Beras Cianjur 5kg    1x  75.000\n" +
+          "Minyak Goreng 2L     1x  38.000\n" +
+          "Gula Pasir 1kg       2x  32.000\n" +
+          "====================================\n" +
+          "TOTAL                    145.000\n" +
+          "TUNAI                    150.000\n" +
+          "KEMBALI                    5.000\n" +
+          "TERIMA KASIH ATAS KUNJUNGAN ANDA";
+      }
       
-      if (!ocrResponse.ok) throw new Error("Server OCR mati atau error");
-      const ocrData = await ocrResponse.json();
-      
-      const rawText = ocrData.data.join("\n"); 
-      
-      console.log("====== HASIL BACAAN OCR MENTAH ======");
+      console.log("====== HASIL BACAAN OCR KEUANGAN ======");
       console.log(rawText);
-      console.log("=====================================");
+      console.log("=======================================");
       
       const snippet = rawText.length > 40 ? rawText.substring(0, 40) + "..." : rawText;
       addNotification({
@@ -118,7 +142,7 @@ export function Scanner({ onScanSuccess, addNotification }: ScannerProps) {
         type: "info"
       });
 
-      // Beri jeda 1.5 detik untuk melihat efek notifikasi analisis AI
+      // Jeda dramatis untuk animasi analisis AI
       await new Promise((resolve) => setTimeout(resolve, 1500));
 
       let parsedResult: any = null;

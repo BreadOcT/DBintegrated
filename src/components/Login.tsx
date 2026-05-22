@@ -17,6 +17,26 @@ export function Login({ onNavigate }: LoginProps) {
   const [isLoading, setIsLoading] = useState(false);
   const { login } = useAuth();
 
+  // 2FA States
+  const [twoFactorRequired, setTwoFactorRequired] = useState(false);
+  const [twoFactorMethod, setTwoFactorMethod] = useState('');
+  const [tempToken, setTempToken] = useState('');
+  const [otpCode, setOtpCode] = useState('');
+  const [otpError, setOtpError] = useState('');
+  const [isOtpLoading, setIsOtpLoading] = useState(false);
+  const [countdown, setCountdown] = useState(0);
+  const [isResending, setIsResending] = useState(false);
+  const [resendMsg, setResendMsg] = useState('');
+
+  // Countdown timer for OTP resend
+  React.useEffect(() => {
+    if (countdown <= 0) return;
+    const timer = setInterval(() => {
+      setCountdown(prev => prev - 1);
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [countdown]);
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
@@ -31,15 +51,80 @@ export function Login({ onNavigate }: LoginProps) {
       const data = await res.json();
       
       if (!res.ok) {
-        setError(data.error || 'Login failed');
+        setError(data.error || 'Login gagal');
+      } else if (data.twoFactorRequired) {
+        setTwoFactorRequired(true);
+        setTwoFactorMethod(data.method);
+        setTempToken(data.tempToken);
+        setOtpCode('');
+        setOtpError('');
+        setResendMsg('');
+        if (data.method === 'email') {
+          setCountdown(60);
+        }
       } else {
         login(data.token, data.user, rememberMe);
         onNavigate('app');
       }
     } catch (err) {
-      setError('Network error');
+      setError('Kesalahan jaringan. Pastikan backend server menyala.');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleVerify2FA = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsOtpLoading(true);
+    setOtpError('');
+    setResendMsg('');
+
+    try {
+      const res = await fetch('/api/auth/2fa/verify-login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tempToken, code: otpCode.trim() })
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        setOtpError(data.error || 'Kode verifikasi salah atau kedaluwarsa');
+      } else {
+        login(data.token, data.user, rememberMe);
+        onNavigate('app');
+      }
+    } catch (err) {
+      setOtpError('Kesalahan jaringan. Silakan coba kembali.');
+    } finally {
+      setIsOtpLoading(false);
+    }
+  };
+
+  const handleResendOtp = async () => {
+    if (countdown > 0 || isResending) return;
+    setIsResending(true);
+    setOtpError('');
+    setResendMsg('');
+
+    try {
+      const res = await fetch('/api/auth/2fa/resend', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tempToken })
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        setOtpError(data.error || 'Gagal mengirim ulang kode OTP');
+      } else {
+        setTempToken(data.tempToken);
+        setResendMsg('Kode OTP baru berhasil dikirim ke email Anda!');
+        setCountdown(60);
+      }
+    } catch (err) {
+      setOtpError('Kesalahan jaringan saat mengirim ulang kode');
+    } finally {
+      setIsResending(false);
     }
   };
 
@@ -77,7 +162,13 @@ export function Login({ onNavigate }: LoginProps) {
         
         {/* Back string */}
         <button 
-          onClick={() => onNavigate('landing')}
+          onClick={() => {
+            if (twoFactorRequired) {
+              setTwoFactorRequired(false);
+            } else {
+              onNavigate('landing');
+            }
+          }}
           className="flex items-center gap-2 text-text-muted hover:text-text-main font-bold text-sm transition-colors w-max"
         >
           <ArrowLeft className="w-4 h-4" /> Kembali
@@ -89,93 +180,185 @@ export function Login({ onNavigate }: LoginProps) {
           transition={{ duration: 0.5 }}
           className="flex-1 flex flex-col justify-center"
         >
-            <div className="mb-10">
-            <motion.div 
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              transition={{ delay: 0.2, duration: 0.4 }}
-              className="flex items-center gap-2 mb-8"
+          {twoFactorRequired ? (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.4 }}
+              className="w-full"
             >
-              <img src={khbLogo} alt="KHB Logo" className="h-12 w-auto object-contain" />
-            </motion.div>
-            <motion.h1 
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.3 }}
-              className="text-3xl md:text-4xl font-black text-text-main mb-3"
-            >
-              Selamat Datang
-            </motion.h1>
-            <motion.p 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.4 }}
-              className="text-text-muted font-medium text-sm md:text-base"
-            >
-              Masukkan email dan kata sandi Anda untuk mengakses akun Anda.
-            </motion.p>
-            {error && <div className="mt-4 p-3 bg-red-100 text-red-600 rounded-lg text-sm font-bold">{error}</div>}
-          </div>
+              <div className="mb-8">
+                <div className="flex justify-center mb-6">
+                  <div className="p-4 bg-nature-green/10 text-nature-green rounded-3xl animate-bounce">
+                    <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                    </svg>
+                  </div>
+                </div>
+                <h2 className="text-2xl md:text-3xl font-black text-text-main text-center mb-3">
+                  Verifikasi 2 Faktor
+                </h2>
+                <p className="text-text-muted text-center text-sm md:text-base font-semibold px-2">
+                  {twoFactorMethod === 'email' 
+                    ? `Kami telah mengirimkan kode OTP 6-digit ke email ${email.replace(/(.{2})(.*)(@.*)/, "$1***$3")}.`
+                    : 'Masukkan kode OTP dari aplikasi Google Authenticator Anda atau gunakan salah satu Kode Backup Darurat.'
+                  }
+                </p>
+                {otpError && (
+                  <div className="mt-4 p-3 bg-red-100 text-red-600 rounded-xl text-sm font-bold text-center border border-red-200">
+                    {otpError}
+                  </div>
+                )}
+                {resendMsg && (
+                  <div className="mt-4 p-3 bg-green-100 text-green-600 rounded-xl text-sm font-bold text-center border border-green-200">
+                    {resendMsg}
+                  </div>
+                )}
+              </div>
 
-          <motion.form 
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.5 }}
-            onSubmit={handleLogin} 
-            className="space-y-5"
-          >
-            <div className="space-y-2 group">
-              <label className="text-xs font-bold text-text-main uppercase tracking-wider group-focus-within:text-nature-green transition-colors">Email</label>
-              <input 
-                type="email"
-                required
-                value={email}
-                onChange={e => setEmail(e.target.value)}
-                placeholder="nama@email.com"
-                className="w-full border border-sand bg-white dark:bg-bg-card rounded-xl px-4 py-3 text-sm font-semibold text-text-main focus:outline-none focus:border-nature-green focus:ring-1 focus:ring-nature-green transition-all placeholder:font-normal placeholder:text-sand hover:border-text-muted/50"
-              />
-            </div>
-            
-            <div className="space-y-2 group">
-              <label className="text-xs font-bold text-text-main uppercase tracking-wider group-focus-within:text-nature-green transition-colors">Kata Sandi</label>
-              <div className="relative">
-                <input 
-                  type={showPassword ? "text" : "password"}
-                  required
-                  value={password}
-                  onChange={e => setPassword(e.target.value)}
-                  className="w-full border border-sand bg-white dark:bg-bg-card rounded-xl pl-4 pr-12 py-3 text-sm font-semibold text-text-main focus:outline-none focus:border-nature-green focus:ring-1 focus:ring-nature-green transition-all hover:border-text-muted/50"
-                />
+              <form onSubmit={handleVerify2FA} className="space-y-6">
+                <div className="space-y-2 group text-center">
+                  <label className="text-xs font-bold text-text-main uppercase tracking-wider group-focus-within:text-nature-green transition-colors">
+                    Kode Verifikasi
+                  </label>
+                  <input 
+                    type="text"
+                    required
+                    maxLength={10}
+                    value={otpCode}
+                    onChange={e => setOtpCode(e.target.value)}
+                    placeholder="000 000"
+                    className="w-full border border-sand bg-white dark:bg-bg-card rounded-2xl px-4 py-4 text-2xl font-black text-center text-text-main focus:outline-none focus:border-nature-green focus:ring-2 focus:ring-nature-green transition-all tracking-[0.2em] placeholder:font-normal placeholder:tracking-normal placeholder:text-sand hover:border-text-muted/50"
+                  />
+                </div>
+
                 <button 
-                  type="button"
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-text-muted hover:text-nature-green transition-colors"
-                  onClick={() => setShowPassword(!showPassword)}
+                  type="submit"
+                  disabled={isOtpLoading}
+                  className="w-full bg-nature-green hover:bg-clay text-bg-base font-bold py-4 rounded-xl transition-all shadow-lg shadow-nature-green/20 hover:shadow-clay/30 active:scale-[0.98] flex justify-center items-center gap-2 group disabled:opacity-50"
                 >
-                  {showPassword ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+                  {isOtpLoading ? 'Memverifikasi...' : 'Verifikasi & Masuk'}
+                  {!isOtpLoading && <ArrowRight className="w-5 h-5 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all" />}
+                </button>
+              </form>
+
+              {twoFactorMethod === 'email' && (
+                <div className="mt-6 text-center">
+                  <button
+                    type="button"
+                    disabled={countdown > 0 || isResending}
+                    onClick={handleResendOtp}
+                    className="text-sm font-bold text-nature-green hover:text-clay transition-colors disabled:opacity-50 disabled:hover:text-nature-green"
+                  >
+                    {countdown > 0 
+                      ? `Kirim Ulang Kode (${countdown}s)` 
+                      : isResending ? 'Mengirim...' : 'Kirim Ulang OTP ke Email'
+                    }
+                  </button>
+                </div>
+              )}
+
+              <div className="mt-8 text-center">
+                <button
+                  type="button"
+                  onClick={() => setTwoFactorRequired(false)}
+                  className="text-sm font-bold text-text-muted hover:text-text-main transition-colors underline decoration-2 underline-offset-4"
+                >
+                  Gunakan Metode Login Lain
                 </button>
               </div>
-            </div>
+            </motion.div>
+          ) : (
+            <>
+              <div className="mb-10">
+                <motion.div 
+                  initial={{ scale: 0.9, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  transition={{ delay: 0.2, duration: 0.4 }}
+                  className="flex items-center gap-2 mb-8"
+                >
+                  <img src={khbLogo} alt="KHB Logo" className="h-12 w-auto object-contain" />
+                </motion.div>
+                <motion.h1 
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.3 }}
+                  className="text-3xl md:text-4xl font-black text-text-main mb-3"
+                >
+                  Selamat Datang
+                </motion.h1>
+                <motion.p 
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.4 }}
+                  className="text-text-muted font-medium text-sm md:text-base"
+                >
+                  Masukkan email dan kata sandi Anda untuk mengakses akun Anda.
+                </motion.p>
+                {error && <div className="mt-4 p-3 bg-red-100 text-red-600 rounded-lg text-sm font-bold">{error}</div>}
+              </div>
 
-            <div className="flex items-center justify-between pt-2">
-              <label className="flex items-center gap-2 cursor-pointer group">
-                <input 
-                  type="checkbox" 
-                  checked={rememberMe}
-                  onChange={e => setRememberMe(e.target.checked)}
-                  className="rounded accent-nature-green cursor-pointer" 
-                />
-                <span className="text-sm font-bold text-text-muted group-hover:text-text-main transition-colors">Ingat Saya</span>
-              </label>
-              <button type="button" onClick={() => onNavigate('forgot-password')} className="text-sm font-bold text-nature-green hover:text-clay transition-colors">Lupa Kata Sandi?</button>
-            </div>
+              <motion.form 
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.5 }}
+                onSubmit={handleLogin} 
+                className="space-y-5"
+              >
+                <div className="space-y-2 group">
+                  <label className="text-xs font-bold text-text-main uppercase tracking-wider group-focus-within:text-nature-green transition-colors">Email</label>
+                  <input 
+                    type="email"
+                    required
+                    value={email}
+                    onChange={e => setEmail(e.target.value)}
+                    placeholder="nama@email.com"
+                    className="w-full border border-sand bg-white dark:bg-bg-card rounded-xl px-4 py-3 text-sm font-semibold text-text-main focus:outline-none focus:border-nature-green focus:ring-1 focus:ring-nature-green transition-all placeholder:font-normal placeholder:text-sand hover:border-text-muted/50"
+                  />
+                </div>
+                
+                <div className="space-y-2 group">
+                  <label className="text-xs font-bold text-text-main uppercase tracking-wider group-focus-within:text-nature-green transition-colors">Kata Sandi</label>
+                  <div className="relative">
+                    <input 
+                      type={showPassword ? "text" : "password"}
+                      required
+                      value={password}
+                      onChange={e => setPassword(e.target.value)}
+                      className="w-full border border-sand bg-white dark:bg-bg-card rounded-xl pl-4 pr-12 py-3 text-sm font-semibold text-text-main focus:outline-none focus:border-nature-green focus:ring-1 focus:ring-nature-green transition-all hover:border-text-muted/50"
+                    />
+                    <button 
+                      type="button"
+                      className="absolute right-4 top-1/2 -translate-y-1/2 text-text-muted hover:text-nature-green transition-colors"
+                      onClick={() => setShowPassword(!showPassword)}
+                    >
+                      {showPassword ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+                    </button>
+                  </div>
+                </div>
 
-            <button 
-              type="submit"
-              className="w-full bg-nature-green hover:bg-clay text-bg-base font-bold py-3.5 rounded-xl transition-all shadow-lg shadow-nature-green/20 hover:shadow-clay/30 active:scale-[0.98] mt-6 flex justify-center items-center gap-2 group"
-            >
-              Masuk <ArrowRight className="w-4 h-4 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all" />
-            </button>
-          </motion.form>
+                <div className="flex items-center justify-between pt-2">
+                  <label className="flex items-center gap-2 cursor-pointer group">
+                    <input 
+                      type="checkbox" 
+                      checked={rememberMe}
+                      onChange={e => setRememberMe(e.target.checked)}
+                      className="rounded accent-nature-green cursor-pointer" 
+                    />
+                    <span className="text-sm font-bold text-text-muted group-hover:text-text-main transition-colors">Ingat Saya</span>
+                  </label>
+                  <button type="button" onClick={() => onNavigate('forgot-password')} className="text-sm font-bold text-nature-green hover:text-clay transition-colors">Lupa Kata Sandi?</button>
+                </div>
+
+                <button 
+                  type="submit"
+                  className="w-full bg-nature-green hover:bg-clay text-bg-base font-bold py-3.5 rounded-xl transition-all shadow-lg shadow-nature-green/20 hover:shadow-clay/30 active:scale-[0.98] mt-6 flex justify-center items-center gap-2 group"
+                >
+                  Masuk <ArrowRight className="w-4 h-4 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all" />
+                </button>
+              </motion.form>
+            </>
+          )}
 
           <motion.div 
             initial={{ opacity: 0 }}

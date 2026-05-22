@@ -143,26 +143,94 @@ async function startServer() {
     res.json({ status: "ok", db: dbPool ? "connected" : "mock" });
   });
 
-  // Auth Routes
+
+
   app.post("/api/auth/login", async (req, res) => {
     try {
       const { email, password } = req.body;
       if (!email || !password) {
-        return res.status(400).json({ error: "Missing email or password" });
+        return res.status(400).json({ error: "Email dan kata sandi diperlukan" });
       }
 
       if (dbPool) {
         const [rows]: any = await dbPool.execute('SELECT * FROM users WHERE email = ?', [email]);
         if (rows.length === 0) {
-          return res.status(401).json({ error: "Invalid email or password" });
+          return res.status(401).json({ error: "Email atau kata sandi salah" });
         }
 
         const user = rows[0];
         const validPassword = await bcrypt.compare(password, user.password);
         if (!validPassword) {
-          return res.status(401).json({ error: "Invalid email or password" });
+          return res.status(401).json({ error: "Email atau kata sandi salah" });
         }
 
+        // Cek apakah 2FA aktif
+        const [twoFaRows]: any = await dbPool.execute('SELECT * FROM two_factor_auth WHERE user_id = ? AND enabled = true', [user.id]);
+        
+        if (twoFaRows.length > 0) {
+          const twoFa = twoFaRows[0];
+          const method = twoFa.method;
+
+          // Jika metode adalah email/sms, kirim kode OTP
+          if (method === 'email' || method === 'sms') {
+            const otp = Math.floor(100000 + Math.random() * 900000).toString();
+
+            if (method === 'email') {
+              const transporter = nodemailer.createTransport({
+                service: 'gmail',
+                auth: {
+                  user: 'admin.keuangankhb@gmail.com',
+                  pass: process.env.EMAIL_APP_PASSWORD || ''
+                }
+              });
+
+              await transporter.sendMail({
+                from: '"Catatan Keuangan KHB" <admin.keuangankhb@gmail.com>',
+                to: user.email,
+                subject: 'Kode OTP Login 2FA - Catatan Keuangan KHB',
+                html: `
+                  <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 10px;">
+                    <h2 style="color: #22da47;">Login Verifikasi 2 Faktor</h2>
+                    <p>Halo ${user.name},</p>
+                    <p>Kami mendeteksi aktivitas masuk ke akun Anda. Masukkan kode OTP di bawah ini untuk menyelesaikan proses login:</p>
+                    <div style="text-align: center; margin: 30px 0;">
+                      <div style="background-color: #f5f5f5; padding: 20px; border-radius: 5px; font-size: 28px; font-weight: bold; letter-spacing: 4px; color: #1b4332; border: 1px dashed #22da47; display: inline-block; min-width: 150px;">${otp}</div>
+                    </div>
+                    <p style="color: #666; font-size: 13px;">Kode verifikasi ini hanya berlaku selama 5 menit. Jangan pernah membagikan kode verifikasi ini kepada siapapun.</p>
+                    <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;"/>
+                    <p style="color: #999; font-size: 11px; text-align: center;">Komunitas Halal Bandung &copy; 2026</p>
+                  </div>
+                `
+              });
+            }
+
+            const tempToken = jwt.sign(
+              { userId: user.id, email: user.email, otp, purpose: '2fa_login' },
+              JWT_SECRET,
+              { expiresIn: '5m' }
+            );
+
+            return res.json({
+              twoFactorRequired: true,
+              method,
+              tempToken
+            });
+          } else if (method === 'authenticator') {
+            const tempToken = jwt.sign(
+              { userId: user.id, email: user.email, purpose: '2fa_login' },
+              JWT_SECRET,
+              { expiresIn: '5m' }
+            );
+
+            return res.json({
+              twoFactorRequired: true,
+              method,
+              tempToken
+            });
+          }
+        }
+
+        // Jika 2FA tidak aktif, login normal
         const token = jwt.sign({ id: user.id, email: user.email, name: user.name }, JWT_SECRET, { expiresIn: '7d' });
 
         // Deteksi & Simpan Perangkat
@@ -209,6 +277,214 @@ async function startServer() {
     } catch (error) {
       console.error("Login Error:", error);
       res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
+  app.post("/api/auth/2fa/verify-login", async (req: any, res: any) => {
+    try {
+      const { tempToken, code } = req.body;
+      if (!tempToken || !code) {
+        return res.status(400).json({ error: "Kode verifikasi dan token sementara diperlukan" });
+      }
+
+      let decoded: any;
+      try {
+        decoded = jwt.verify(tempToken, JWT_SECRET);
+      } catch (err) {
+        return res.status(400).json({ error: "Sesi verifikasi telah kedaluwarsa atau tidak valid" });
+      }
+
+      if (decoded.purpose !== '2fa_login') {
+        return res.status(400).json({ error: "Token tidak sah" });
+      }
+
+      if (!dbPool) {
+        return res.status(501).json({ error: "Database tidak tersedia" });
+      }
+
+      const userId = decoded.userId;
+
+      // Ambil data user
+      const [userRows]: any = await dbPool.execute('SELECT * FROM users WHERE id = ?', [userId]);
+      if (userRows.length === 0) {
+        return res.status(404).json({ error: "Pengguna tidak ditemukan" });
+      }
+      const user = userRows[0];
+
+      // Ambil data 2FA
+      const [twoFaRows]: any = await dbPool.execute('SELECT * FROM two_factor_auth WHERE user_id = ? AND enabled = true', [userId]);
+      if (twoFaRows.length === 0) {
+        return res.status(400).json({ error: "2FA tidak aktif untuk akun ini" });
+      }
+      const twoFa = twoFaRows[0];
+
+      // Cek Backup Codes terlebih dahulu
+      let backupCodes: string[] = [];
+      if (twoFa.backup_codes) {
+        backupCodes = twoFa.backup_codes.split(',');
+      }
+
+      const isBackupCode = backupCodes.includes(code.toUpperCase());
+      let isValid = false;
+
+      if (isBackupCode) {
+        isValid = true;
+        // Hapus backup code yang telah dipakai
+        const updatedBackupCodes = backupCodes.filter(c => c !== code.toUpperCase()).join(',');
+        await dbPool.execute('UPDATE two_factor_auth SET backup_codes = ? WHERE user_id = ?', [updatedBackupCodes, userId]);
+      } else {
+        if (twoFa.method === 'email' || twoFa.method === 'sms') {
+          isValid = (decoded.otp === code);
+        } else if (twoFa.method === 'authenticator') {
+          isValid = authenticator.check(code, twoFa.secret);
+        }
+      }
+
+      if (!isValid) {
+        return res.status(400).json({ error: "Kode verifikasi tidak valid" });
+      }
+
+      // Login sukses, generate full JWT token
+      const token = jwt.sign({ id: user.id, email: user.email, name: user.name }, JWT_SECRET, { expiresIn: '7d' });
+
+      // Deteksi & Simpan Perangkat
+      try {
+        const userAgent = req.headers['user-agent'] || 'Unknown Device';
+        let deviceName = 'Browser / PC';
+
+        if (/windows/i.test(userAgent)) deviceName = 'Windows PC';
+        else if (/macintosh|mac os x/i.test(userAgent)) deviceName = 'MacBook / Mac';
+        else if (/iphone/i.test(userAgent)) deviceName = 'iPhone';
+        else if (/android/i.test(userAgent)) deviceName = 'Android Device';
+        else if (/linux/i.test(userAgent)) deviceName = 'Linux PC';
+
+        const tokenHash = crypto.createHash ? crypto.createHash('sha256').update(token).digest('hex') : token.substring(token.length - 20);
+        await dbPool.execute(
+          'INSERT INTO user_devices (id, user_id, device_name, location, token_hash) VALUES (?, ?, ?, ?, ?)',
+          [crypto.randomUUID(), user.id, deviceName, 'Bandung, Indonesia', tokenHash]
+        );
+      } catch (devErr) {
+        console.error("Gagal mencatat perangkat:", devErr);
+      }
+
+      res.json({
+        token,
+        user: {
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          phone: user.phone,
+          photo: user.photo,
+          weekly_report: user.weekly_report,
+          bill_reminder: user.bill_reminder,
+          promo_offer: user.promo_offer
+        }
+      });
+    } catch (error) {
+      console.error("Verify Login Error:", error);
+      res.status(500).json({ error: "Gagal memproses verifikasi login" });
+    }
+  });
+
+  app.post("/api/auth/2fa/resend", async (req: any, res: any) => {
+    try {
+      const { tempToken } = req.body;
+      if (!tempToken) {
+        return res.status(400).json({ error: "Token sementara diperlukan" });
+      }
+
+      let decoded: any;
+      try {
+        decoded = jwt.verify(tempToken, JWT_SECRET);
+      } catch (err) {
+        return res.status(400).json({ error: "Sesi verifikasi telah kedaluwarsa atau tidak valid" });
+      }
+
+      if (decoded.purpose !== '2fa_login') {
+        return res.status(400).json({ error: "Token tidak sah" });
+      }
+
+      if (!dbPool) {
+        return res.status(501).json({ error: "Database tidak tersedia" });
+      }
+
+      const userId = decoded.userId;
+
+      const [userRows]: any = await dbPool.execute('SELECT * FROM users WHERE id = ?', [userId]);
+      if (userRows.length === 0) {
+        return res.status(404).json({ error: "Pengguna tidak ditemukan" });
+      }
+      const user = userRows[0];
+
+      const [twoFaRows]: any = await dbPool.execute('SELECT * FROM two_factor_auth WHERE user_id = ? AND enabled = true', [userId]);
+      if (twoFaRows.length === 0) {
+        return res.status(400).json({ error: "2FA tidak aktif untuk akun ini" });
+      }
+      const twoFa = twoFaRows[0];
+
+      if (twoFa.method !== 'email' && twoFa.method !== 'sms') {
+        return res.status(400).json({ error: "Resend OTP tidak didukung untuk metode ini" });
+      }
+
+      const otp = Math.floor(100000 + Math.random() * 900000).toString();
+
+      if (twoFa.method === 'email') {
+        const transporter = nodemailer.createTransport({
+          service: 'gmail',
+          auth: {
+            user: 'admin.keuangankhb@gmail.com',
+            pass: process.env.EMAIL_APP_PASSWORD || ''
+          }
+        });
+
+        await transporter.sendMail({
+          from: '"Catatan Keuangan KHB" <admin.keuangankhb@gmail.com>',
+          to: user.email,
+          subject: 'Kode OTP Baru 2FA - Catatan Keuangan KHB',
+          html: `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 10px;">
+              <h2 style="color: #22da47;">Kode OTP Baru Anda</h2>
+              <p>Halo ${user.name},</p>
+              <p>Berikut adalah kode verifikasi OTP baru Anda untuk login:</p>
+              <div style="text-align: center; margin: 30px 0;">
+                <div style="background-color: #f5f5f5; padding: 20px; border-radius: 5px; font-size: 28px; font-weight: bold; letter-spacing: 4px; color: #1b4332; border: 1px dashed #22da47; display: inline-block; min-width: 150px;">${otp}</div>
+              </div>
+              <p style="color: #666; font-size: 13px;">Kode verifikasi ini hanya berlaku selama 5 menit. Jangan pernah membagikan kode verifikasi ini kepada siapapun.</p>
+              <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;"/>
+              <p style="color: #999; font-size: 11px; text-align: center;">Komunitas Halal Bandung &copy; 2026</p>
+            </div>
+          `
+        });
+      }
+
+      const newTempToken = jwt.sign(
+        { userId: user.id, email: user.email, otp, purpose: '2fa_login' },
+        JWT_SECRET,
+        { expiresIn: '5m' }
+      );
+
+      res.json({
+        message: "Kode OTP baru telah dikirim",
+        tempToken: newTempToken
+      });
+    } catch (error) {
+      console.error("Resend OTP Error:", error);
+      res.status(500).json({ error: "Gagal mengirim ulang kode verifikasi" });
+    }
+  });
+
+  app.delete("/api/auth/clear-data", authenticateToken, async (req: any, res: any) => {
+    if (dbPool) {
+      try {
+        await dbPool.execute('DELETE FROM transactions WHERE user_id = ?', [req.user.id]);
+        await dbPool.execute('DELETE FROM monthly_budgets WHERE user_id = ?', [req.user.id]);
+        res.json({ message: "Semua data transaksi dan anggaran berhasil dihapus permanen" });
+      } catch (error) {
+        console.error("Clear data error:", error);
+        res.status(500).json({ error: "Gagal menghapus semua data" });
+      }
+    } else {
+      res.status(501).json({ error: "Database tidak terkonfigurasi" });
     }
   });
 
@@ -501,11 +777,21 @@ async function startServer() {
 
   app.get("/api/auth/me", authenticateToken, async (req: any, res: any) => {
     if (dbPool) {
-      const [rows]: any = await dbPool.execute('SELECT id, name, email, phone, photo, weekly_report, bill_reminder, promo_offer FROM users WHERE id = ?', [req.user.id]);
-      if (rows.length > 0) {
-        res.json(rows[0]);
-      } else {
-        res.status(404).json({ error: "User not found" });
+      try {
+        const [rows]: any = await dbPool.execute('SELECT id, name, email, phone, photo, weekly_report, bill_reminder, promo_offer FROM users WHERE id = ?', [req.user.id]);
+        if (rows.length > 0) {
+          const [twoFaRows]: any = await dbPool.execute('SELECT enabled FROM two_factor_auth WHERE user_id = ?', [req.user.id]);
+          const two_factor_enabled = twoFaRows.length > 0 ? Boolean(twoFaRows[0].enabled) : false;
+          res.json({
+            ...rows[0],
+            two_factor_enabled
+          });
+        } else {
+          res.status(404).json({ error: "User not found" });
+        }
+      } catch (err) {
+        console.error("Get profile error:", err);
+        res.status(500).json({ error: "Gagal mengambil data profil" });
       }
     } else {
       res.json(req.user);
@@ -897,49 +1183,130 @@ async function startServer() {
 
       // KONDISI 1: JIKA FORMAT CSV
       if (format === 'csv') {
-        attachmentContent = "Deskripsi,Jumlah,Tipe,Kategori,Tanggal\n" +
-          rows.map((r: any) => {
-            const dateStr = r.date instanceof Date ? r.date.toISOString().split('T')[0] : String(r.date).split('T')[0];
-            return `"${r.description || ''}",${r.amount},${r.type},${r.category},"${dateStr}"`;
+        const totalTransactions = rows.length;
+        let totalIncome = 0;
+        let totalExpense = 0;
+        rows.forEach((r: any) => {
+          const amt = Number(r.amount || 0);
+          if (r.type === 'income') totalIncome += amt;
+          else if (r.type === 'expense') totalExpense += amt;
+        });
+        const netBalance = totalIncome - totalExpense;
+
+        const dateNowStr = new Date().toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' });
+
+        attachmentContent = "LAPORAN REKAPITULASI TRANSAKSI KEUANGAN\n" +
+          "Komunitas Halal Bandung (KHB)\n" +
+          `Email Pengguna: ${req.user.email}\n` +
+          `Tanggal Ekspor: ${dateNowStr}\n\n` +
+          "RINGKASAN KEUANGAN\n" +
+          "Total Transaksi,Total Pemasukan,Total Pengeluaran,Saldo Bersih\n" +
+          `"${totalTransactions}","Rp ${totalIncome.toLocaleString('id-ID')}","Rp ${totalExpense.toLocaleString('id-ID')}","Rp ${netBalance.toLocaleString('id-ID')}"\n\n` +
+          "DAFTAR TRANSAKSI\n" +
+          "No,Tanggal,Deskripsi,Kategori,Tipe Transaksi,Jumlah (IDR)\n" +
+          rows.map((r: any, i: number) => {
+            let formattedDate = '-';
+            if (r.date) {
+              formattedDate = r.date instanceof Date
+                ? r.date.toISOString().split('T')[0]
+                : String(r.date).split('T')[0];
+            }
+            const displayType = r.type === 'income' ? 'Pemasukan' : 'Pengeluaran';
+            const desc = (r.description || '').replace(/"/g, '""');
+            const cat = (r.category || '').replace(/"/g, '""');
+            return `${i + 1},"${formattedDate}","${desc}","${cat}","${displayType}",${r.amount}`;
           }).join("\n");
       }
       // KONDISI 2: JIKA FORMAT PDF
       else if (format === 'pdf') {
-        // Inisialisasi dokumen menggunakan import ES Module dari atas
-        const doc = new PDFDocument({ margin: 40 });
+        // Inisialisasi dokumen dengan bufferPages: true untuk menghitung total halaman secara akurat
+        const doc = new PDFDocument({ margin: 40, bufferPages: true });
         const buffers: Buffer[] = [];
 
-        // Bungkus proses stream ke dalam Promise agar data PDF selesai di-generate seutuhnya
         await new Promise<void>((resolve, reject) => {
           doc.on('data', (chunk: Buffer) => buffers.push(chunk));
           doc.on('end', () => resolve());
           doc.on('error', (err: any) => reject(err));
 
-          // Judul Laporan
-          doc.fontSize(18).font('Helvetica-Bold').text('LAPORAN TRANSAKSI KEUANGAN', { align: 'center' });
-          doc.fontSize(11).font('Helvetica').text('Komunitas Halal Bandung (KHB)', { align: 'center' });
-          doc.moveDown(2);
+          // 1. HEADER BANNER (Hero Box)
+          // Warna Hijau Alami KHB (#1b4332)
+          doc.roundedRect(40, 30, 532, 80, 8).fill('#1b4332');
 
-          // Header Tabel PDF
-          const startY = doc.y;
-          doc.fontSize(10).font('Helvetica-Bold');
-          doc.text('No', 40, startY, { width: 30 });
-          doc.text('Tanggal', 70, startY, { width: 75 });
-          doc.text('Kategori', 145, startY, { width: 85 });
-          doc.text('Tipe', 230, startY, { width: 75 });
-          doc.text('Jumlah (Rp)', 305, startY, { width: 85 });
-          doc.text('Deskripsi', 390, startY, { width: 165 });
+          doc.fillColor('#ffffff').fontSize(20).font('Helvetica-Bold').text('LAPORAN KEUANGAN KHB', 60, 48);
+          doc.fontSize(10).font('Helvetica').fillColor('#a3e635').text('Komunitas Halal Bandung', 60, 74);
 
-          doc.moveDown(0.3);
-          doc.text('------------------------------------------------------------------------------------------------------------------------');
-          doc.moveDown(0.5);
+          const dateNowStr = new Date().toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' });
+          doc.fillColor('#ffffff').fontSize(8.5).font('Helvetica');
+          doc.text(`Pengguna: ${req.user.email}`, 380, 50, { align: 'right', width: 172 });
+          doc.text(`Tanggal Ekspor: ${dateNowStr}`, 380, 66, { align: 'right', width: 172 });
+          doc.text(`Total Transaksi: ${rows.length}`, 380, 82, { align: 'right', width: 172 });
 
-          // Isi Data Tabel PDF
-          doc.font('Helvetica');
+          // 2. SUMMARY CARDS
+          let totalIncome = 0;
+          let totalExpense = 0;
+          rows.forEach((r: any) => {
+            const amt = Number(r.amount || 0);
+            if (r.type === 'income') totalIncome += amt;
+            else if (r.type === 'expense') totalExpense += amt;
+          });
+          const netBalance = totalIncome - totalExpense;
+
+          // Card 1: Pemasukan (Hijau Lembut)
+          doc.roundedRect(40, 126, 168, 54, 6).fill('#e8f5e9');
+          doc.fillColor('#2e7d32').fontSize(7.5).font('Helvetica-Bold').text('TOTAL PEMASUKAN', 52, 136);
+          doc.fillColor('#1b4332').fontSize(11).font('Helvetica-Bold').text('Rp ' + totalIncome.toLocaleString('id-ID'), 52, 152, { width: 144, ellipsis: true });
+
+          // Card 2: Pengeluaran (Merah Lembut)
+          doc.roundedRect(222, 126, 168, 54, 6).fill('#fdf2f2');
+          doc.fillColor('#c53030').fontSize(7.5).font('Helvetica-Bold').text('TOTAL PENGELUARAN', 234, 136);
+          doc.fillColor('#7a1a1a').fontSize(11).font('Helvetica-Bold').text('Rp ' + totalExpense.toLocaleString('id-ID'), 234, 152, { width: 144, ellipsis: true });
+
+          // Card 3: Saldo Bersih (Biru Lembut)
+          doc.roundedRect(404, 126, 168, 54, 6).fill('#eef2ff');
+          doc.fillColor('#3730a3').fontSize(7.5).font('Helvetica-Bold').text('SALDO BERSIH', 416, 136);
+          doc.fillColor('#1e1b4b').fontSize(11).font('Helvetica-Bold').text('Rp ' + netBalance.toLocaleString('id-ID'), 416, 152, { width: 144, ellipsis: true });
+
+          // 3. TABLE OF TRANSACTIONS
+          let currentY = 196;
+          const rowHeight = 22;
+          const pageHeightLimit = 700;
+
+          // Render Table Header
+          doc.roundedRect(40, currentY, 532, 22, 4).fill('#f4f6f0');
+          doc.fillColor('#1b4332').fontSize(9).font('Helvetica-Bold');
+          doc.text('No', 48, currentY + 6, { width: 25 });
+          doc.text('Tanggal', 75, currentY + 6, { width: 65 });
+          doc.text('Kategori', 145, currentY + 6, { width: 80 });
+          doc.text('Tipe', 230, currentY + 6, { width: 70 });
+          doc.text('Jumlah (Rp)', 305, currentY + 6, { width: 85, align: 'right' });
+          doc.text('Deskripsi', 405, currentY + 6, { width: 155 });
+
+          currentY += 28;
+
+          // Render Rows
           rows.forEach((r: any, i: number) => {
-            const currentY = doc.y;
+            if (currentY + rowHeight > pageHeightLimit) {
+              doc.addPage();
+              currentY = 40;
+              
+              // Redraw Table Header on new page
+              doc.roundedRect(40, currentY, 532, 22, 4).fill('#f4f6f0');
+              doc.fillColor('#1b4332').fontSize(9).font('Helvetica-Bold');
+              doc.text('No', 48, currentY + 6, { width: 25 });
+              doc.text('Tanggal', 75, currentY + 6, { width: 65 });
+              doc.text('Kategori', 145, currentY + 6, { width: 80 });
+              doc.text('Tipe', 230, currentY + 6, { width: 70 });
+              doc.text('Jumlah (Rp)', 305, currentY + 6, { width: 85, align: 'right' });
+              doc.text('Deskripsi', 405, currentY + 6, { width: 155 });
 
-            // Penanganan Format Tanggal yang Aman
+              currentY += 28;
+            }
+
+            // Zebra striping
+            if (i % 2 === 1) {
+              doc.roundedRect(40, currentY, 532, rowHeight, 2).fill('#fbfcf9');
+            }
+
             let formattedDate = '-';
             if (r.date) {
               formattedDate = r.date instanceof Date
@@ -947,24 +1314,55 @@ async function startServer() {
                 : String(r.date).split('T')[0];
             }
 
-            const formattedAmount = Number(r.amount || 0).toLocaleString('id-ID');
-            const displayType = r.type === 'income' ? 'Pemasukan' : 'Pengeluaran';
+            const isIncome = r.type === 'income';
+            const amountPrefix = isIncome ? '+' : '-';
+            const formattedAmount = `${amountPrefix} Rp ${Number(r.amount || 0).toLocaleString('id-ID')}`;
+            const displayType = isIncome ? 'Pemasukan' : 'Pengeluaran';
+            const amountColor = isIncome ? '#2e7d32' : '#c53030';
 
-            doc.text(`${i + 1}`, 40, currentY, { width: 30 });
-            doc.text(formattedDate, 70, currentY, { width: 75 });
-            doc.text(r.category || '-', 145, currentY, { width: 85 });
-            doc.text(displayType, 230, currentY, { width: 75 });
-            doc.text(formattedAmount, 305, currentY, { width: 85 });
-            doc.text(r.description || '-', 390, currentY, { width: 165 });
+            // Draw cells
+            doc.fillColor('#111827').fontSize(8.5).font('Helvetica');
+            doc.text(`${i + 1}`, 48, currentY + 6, { width: 25 });
+            doc.text(formattedDate, 75, currentY + 6, { width: 65 });
+            doc.text(r.category || '-', 145, currentY + 6, { width: 80, ellipsis: true });
+            doc.text(displayType, 230, currentY + 6, { width: 70 });
+            
+            doc.fillColor(amountColor).font('Helvetica-Bold');
+            doc.text(formattedAmount, 305, currentY + 6, { width: 85, align: 'right' });
+            
+            doc.fillColor('#111827').font('Helvetica');
+            doc.text(r.description || '-', 405, currentY + 6, { width: 155, ellipsis: true });
 
-            doc.moveDown(0.8);
+            currentY += rowHeight;
           });
 
-          // Akhiri aliran pembuatan dokumen
+          // 4. FOOTERS & PAGE NUMBERS (Draw after buffering pages)
+          const range = doc.bufferedPageRange();
+          for (let j = 0; j < range.count; j++) {
+            doc.switchToPage(j);
+            
+            // Subtle horizontal line above footer
+            doc.rect(40, 740, 532, 0.5).fill('#e5e7eb');
+
+            doc.fillColor('#6b7280').fontSize(7.5).font('Helvetica');
+            doc.text(
+              'Laporan ini diunduh secara resmi melalui aplikasi Catatan Keuangan KHB.',
+              40,
+              748,
+              { align: 'left', width: 350 }
+            );
+
+            doc.text(
+              `Halaman ${j + 1} dari ${range.count}`,
+              400,
+              748,
+              { align: 'right', width: 172 }
+            );
+          }
+
           doc.end();
         });
 
-        // Satukan seluruh potongan chunk menjadi satu buffer tunggal
         attachmentContent = Buffer.concat(buffers);
       } else {
         return res.status(400).json({ error: "Format tidak didukung" });
