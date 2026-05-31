@@ -1,6 +1,5 @@
 import express from "express";
 import path from "path";
-import { createServer as createViteServer } from "vite";
 import mysql from "mysql2/promise";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
@@ -139,11 +138,7 @@ if (process.env.DB_HOST && process.env.DB_USER && process.env.DB_NAME) {
   console.log("No MySQL connection configured. Running in local/mock mode.");
 }
 
-async function startServer() {
-  const app = express();
-  const PORT = 3000;
-  app.use(express.json({ limit: '50mb' }));
-  app.use(express.urlencoded({ limit: '50mb', extended: true }));
+// All routes and middleware are registered directly on the top-level app
 
   // Middleware Auth
   const authenticateToken = (req: any, res: any, next: any) => {
@@ -1374,24 +1369,34 @@ async function startServer() {
     }
   });
 
-  // Vite middleware for development
+  // Vite middleware for development or fallback static serving in production
   if (process.env.NODE_ENV !== "production") {
-    const vite = await createViteServer({
-      server: { middlewareMode: true },
-      appType: "spa",
+    import("vite").then(({ createServer: createViteServer }) => {
+      createViteServer({
+        server: { middlewareMode: true },
+        appType: "spa",
+      }).then((vite) => {
+        app.use(vite.middlewares);
+        if (!process.env.VERCEL) {
+          const PORT = Number(process.env.PORT) || 3000;
+          app.listen(PORT, "0.0.0.0", () => {
+            console.log(`Server running in development on http://localhost:${PORT}`);
+          });
+        }
+      });
     });
-    app.use(vite.middlewares);
   } else {
-    const distPath = path.join(process.cwd(), 'dist');
-    app.use(express.static(distPath));
-    app.get('*', (req: any, res: any) => {
-      res.sendFile(path.join(distPath, 'index.html'));
-    });
+    if (!process.env.VERCEL) {
+      const distPath = path.join(process.cwd(), 'dist');
+      app.use(express.static(distPath));
+      app.get('*', (req: any, res: any) => {
+        res.sendFile(path.join(distPath, 'index.html'));
+      });
+      const PORT = Number(process.env.PORT) || 3000;
+      app.listen(PORT, "0.0.0.0", () => {
+        console.log(`Server running in production on http://localhost:${PORT}`);
+      });
+    }
   }
-
-  // app.listen(PORT, "0.0.0.0", () => {
-  //   console.log(`Server running on http://localhost:${PORT}`);
-  // });
-}
 
 export default app;
