@@ -14,6 +14,10 @@ import dns from "dns";
 
 dotenv.config();
 
+const app = express();
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
+
 const JWT_SECRET = process.env.JWT_SECRET || "super-secret-key-change-me";
 
 const getEmailTransporter = () => {
@@ -30,7 +34,6 @@ const getEmailSender = () => {
   return `"Catatan Keuangan KHB" <${process.env.EMAIL_USER || 'admin.keuangankhb@gmail.com'}>`;
 };
 
-// Setup MySQL Connection Pool
 // Setup MySQL Connection Pool
 let dbPool: mysql.Pool | null = null;
 if (process.env.DB_HOST && process.env.DB_USER && process.env.DB_NAME) {
@@ -1391,4 +1394,4 @@ async function startServer() {
   });
 }
 
-startServer();
+export default app;
