@@ -50,87 +50,89 @@ if (process.env.DB_HOST && process.env.DB_USER && process.env.DB_NAME) {
     });
     console.log("MySQL connection pool created successfully!");
 
-    // Auto-migrate tables
-    (async () => {
-      try {
-        await dbPool.execute(`
-          CREATE TABLE IF NOT EXISTS users (
-            id CHAR(36) PRIMARY KEY,
-            email VARCHAR(255) UNIQUE NOT NULL,
-            password VARCHAR(255) NOT NULL,
-            name VARCHAR(255) NOT NULL,
-            phone VARCHAR(50),
-            photo LONGTEXT,
-            weekly_report BOOLEAN DEFAULT TRUE,
-            bill_reminder BOOLEAN DEFAULT TRUE,
-            promo_offer BOOLEAN DEFAULT FALSE,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-          )
-        `);
-        // Add columns if they don't exist (for existing tables)
-        try { await dbPool.execute(`ALTER TABLE users ADD COLUMN phone VARCHAR(50)`); } catch (e) { }
-        try { await dbPool.execute(`ALTER TABLE users ADD COLUMN photo LONGTEXT`); } catch (e) { }
-        try { await dbPool.execute(`ALTER TABLE users ADD COLUMN weekly_report BOOLEAN DEFAULT TRUE`); } catch (e) { }
-        try { await dbPool.execute(`ALTER TABLE users ADD COLUMN bill_reminder BOOLEAN DEFAULT TRUE`); } catch (e) { }
-        try { await dbPool.execute(`ALTER TABLE users ADD COLUMN promo_offer BOOLEAN DEFAULT FALSE`); } catch (e) { }
+    // Auto-migrate tables (only run locally to avoid Vercel serverless timeouts)
+    if (!process.env.VERCEL) {
+      (async () => {
+        try {
+          await dbPool.execute(`
+            CREATE TABLE IF NOT EXISTS users (
+              id CHAR(36) PRIMARY KEY,
+              email VARCHAR(255) UNIQUE NOT NULL,
+              password VARCHAR(255) NOT NULL,
+              name VARCHAR(255) NOT NULL,
+              phone VARCHAR(50),
+              photo LONGTEXT,
+              weekly_report BOOLEAN DEFAULT TRUE,
+              bill_reminder BOOLEAN DEFAULT TRUE,
+              promo_offer BOOLEAN DEFAULT FALSE,
+              created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+          `);
+          // Add columns if they don't exist (for existing tables)
+          try { await dbPool.execute(`ALTER TABLE users ADD COLUMN phone VARCHAR(50)`); } catch (e) { }
+          try { await dbPool.execute(`ALTER TABLE users ADD COLUMN photo LONGTEXT`); } catch (e) { }
+          try { await dbPool.execute(`ALTER TABLE users ADD COLUMN weekly_report BOOLEAN DEFAULT TRUE`); } catch (e) { }
+          try { await dbPool.execute(`ALTER TABLE users ADD COLUMN bill_reminder BOOLEAN DEFAULT TRUE`); } catch (e) { }
+          try { await dbPool.execute(`ALTER TABLE users ADD COLUMN promo_offer BOOLEAN DEFAULT FALSE`); } catch (e) { }
 
-        await dbPool.execute(`
-          CREATE TABLE IF NOT EXISTS transactions (
-            id CHAR(36) PRIMARY KEY,
-            user_id CHAR(36) NOT NULL,
-            description VARCHAR(255),
-            amount DECIMAL(15, 2) NOT NULL,
-            type ENUM('income', 'expense') NOT NULL,
-            category VARCHAR(100) NOT NULL,
-            date DATE NOT NULL,
-            store_name VARCHAR(255),
-            raw_text LONGTEXT,
-            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-          )
-        `);
-
-        try { await dbPool.execute(`ALTER TABLE transactions ADD COLUMN raw_text LONGTEXT`); } catch (e) { }
-        try { await dbPool.execute(`ALTER TABLE transactions ADD COLUMN items LONGTEXT`); } catch (e) { }
-
-        await dbPool.execute(`
-          CREATE TABLE IF NOT EXISTS monthly_budgets (
+          await dbPool.execute(`
+            CREATE TABLE IF NOT EXISTS transactions (
+              id CHAR(36) PRIMARY KEY,
               user_id CHAR(36) NOT NULL,
-              month INT NOT NULL,
-              year INT NOT NULL,
-              income_target DECIMAL(15, 2) DEFAULT 0,
-              expense_target DECIMAL(15, 2) DEFAULT 0,
-              PRIMARY KEY (user_id, month, year),
+              description VARCHAR(255),
+              amount DECIMAL(15, 2) NOT NULL,
+              type ENUM('income', 'expense') NOT NULL,
+              category VARCHAR(100) NOT NULL,
+              date DATE NOT NULL,
+              store_name VARCHAR(255),
+              raw_text LONGTEXT,
               FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-          )
-        `);
+            )
+          `);
 
-        await dbPool.execute(`
-          CREATE TABLE IF NOT EXISTS two_factor_auth (
-              user_id CHAR(36) PRIMARY KEY,
-              method VARCHAR(50) NOT NULL,
-              secret VARCHAR(255) NOT NULL,
-              backup_codes TEXT NOT NULL,
-              enabled BOOLEAN DEFAULT false,
-              created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          try { await dbPool.execute(`ALTER TABLE transactions ADD COLUMN raw_text LONGTEXT`); } catch (e) { }
+          try { await dbPool.execute(`ALTER TABLE transactions ADD COLUMN items LONGTEXT`); } catch (e) { }
+
+          await dbPool.execute(`
+            CREATE TABLE IF NOT EXISTS monthly_budgets (
+                user_id CHAR(36) NOT NULL,
+                month INT NOT NULL,
+                year INT NOT NULL,
+                income_target DECIMAL(15, 2) DEFAULT 0,
+                expense_target DECIMAL(15, 2) DEFAULT 0,
+                PRIMARY KEY (user_id, month, year),
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+            )
+          `);
+
+          await dbPool.execute(`
+            CREATE TABLE IF NOT EXISTS two_factor_auth (
+                user_id CHAR(36) PRIMARY KEY,
+                method VARCHAR(50) NOT NULL,
+                secret VARCHAR(255) NOT NULL,
+                backup_codes TEXT NOT NULL,
+                enabled BOOLEAN DEFAULT false,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+            )
+          `);
+
+          await dbPool.execute(`
+            CREATE TABLE IF NOT EXISTS user_devices (
+              id CHAR(36) PRIMARY KEY,
+              user_id CHAR(36) NOT NULL,
+              device_name VARCHAR(255) NOT NULL,
+              location VARCHAR(255) DEFAULT 'Unknown',
+              last_active TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+              token_hash VARCHAR(255) UNIQUE,
               FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-          )
-        `);
-
-        await dbPool.execute(`
-          CREATE TABLE IF NOT EXISTS user_devices (
-            id CHAR(36) PRIMARY KEY,
-            user_id CHAR(36) NOT NULL,
-            device_name VARCHAR(255) NOT NULL,
-            location VARCHAR(255) DEFAULT 'Unknown',
-            last_active TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-            token_hash VARCHAR(255) UNIQUE,
-            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-          )
-        `);
-      } catch (error) {
-        console.error("Database migration error:", error);
-      }
-    })();
+            )
+          `);
+        } catch (error) {
+          console.error("Database migration error:", error);
+        }
+      })();
+    }
   } catch (error) {
     console.error("Failed to create MySQL pool:", error);
   }
