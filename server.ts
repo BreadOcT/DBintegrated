@@ -1,5 +1,6 @@
 import express from "express";
 import path from "path";
+import { createServer as createViteServer } from "vite";
 import mysql from "mysql2/promise";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
@@ -12,10 +13,6 @@ import PDFDocument from "pdfkit";
 import dns from "dns";
 
 dotenv.config();
-
-const app = express();
-app.use(express.json({ limit: '50mb' }));
-app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 const JWT_SECRET = process.env.JWT_SECRET || "super-secret-key-change-me";
 
@@ -33,6 +30,7 @@ const getEmailSender = () => {
   return `"Catatan Keuangan KHB" <${process.env.EMAIL_USER || 'admin.keuangankhb@gmail.com'}>`;
 };
 
+// Setup MySQL Connection Pool
 // Setup MySQL Connection Pool
 let dbPool: mysql.Pool | null = null;
 if (process.env.DB_HOST && process.env.DB_USER && process.env.DB_NAME) {
@@ -138,7 +136,11 @@ if (process.env.DB_HOST && process.env.DB_USER && process.env.DB_NAME) {
   console.log("No MySQL connection configured. Running in local/mock mode.");
 }
 
-// All routes and middleware are registered directly on the top-level app
+async function startServer() {
+  const app = express();
+  const PORT = 3000;
+  app.use(express.json({ limit: '50mb' }));
+  app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
   // Middleware Auth
   const authenticateToken = (req: any, res: any, next: any) => {
@@ -1369,34 +1371,24 @@ if (process.env.DB_HOST && process.env.DB_USER && process.env.DB_NAME) {
     }
   });
 
-  // Vite middleware for development or fallback static serving in production
+  // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {
-    import("vite").then(({ createServer: createViteServer }) => {
-      createViteServer({
-        server: { middlewareMode: true },
-        appType: "spa",
-      }).then((vite) => {
-        app.use(vite.middlewares);
-        if (!process.env.VERCEL) {
-          const PORT = Number(process.env.PORT) || 3000;
-          app.listen(PORT, "0.0.0.0", () => {
-            console.log(`Server running in development on http://localhost:${PORT}`);
-          });
-        }
-      });
+    const vite = await createViteServer({
+      server: { middlewareMode: true },
+      appType: "spa",
     });
+    app.use(vite.middlewares);
   } else {
-    if (!process.env.VERCEL) {
-      const distPath = path.join(process.cwd(), 'dist');
-      app.use(express.static(distPath));
-      app.get('*', (req: any, res: any) => {
-        res.sendFile(path.join(distPath, 'index.html'));
-      });
-      const PORT = Number(process.env.PORT) || 3000;
-      app.listen(PORT, "0.0.0.0", () => {
-        console.log(`Server running in production on http://localhost:${PORT}`);
-      });
-    }
+    const distPath = path.join(process.cwd(), 'dist');
+    app.use(express.static(distPath));
+    app.get('*', (req: any, res: any) => {
+      res.sendFile(path.join(distPath, 'index.html'));
+    });
   }
 
-export default app;
+  app.listen(PORT, "0.0.0.0", () => {
+    console.log(`Server running on http://localhost:${PORT}`);
+  });
+}
+
+startServer();
