@@ -13,6 +13,15 @@ import dns from "dns";
 
 dotenv.config();
 
+// Handle uncaught exceptions and unhandled promise rejections to prevent silent crashes
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+});
+
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught Exception thrown:', err);
+});
+
 const app = express();
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
@@ -49,6 +58,16 @@ if (process.env.DB_HOST && process.env.DB_USER && process.env.DB_NAME) {
       queueLimit: 0
     });
     console.log("MySQL connection pool created successfully!");
+
+    // Test connection on startup to print database errors in Vercel logs
+    dbPool.getConnection()
+      .then(conn => {
+        console.log("MySQL Database connection test successful!");
+        conn.release();
+      })
+      .catch(err => {
+        console.error("MySQL Database connection test FAILED on startup:", err);
+      });
 
     // Auto-migrate tables (only run locally to avoid Vercel serverless timeouts)
     if (!process.env.VERCEL) {
