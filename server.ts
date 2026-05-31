@@ -16,15 +16,32 @@ dotenv.config();
 
 const JWT_SECRET = process.env.JWT_SECRET || "super-secret-key-change-me";
 
+const getEmailTransporter = () => {
+  return nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+      user: process.env.EMAIL_USER || 'admin.keuangankhb@gmail.com',
+      pass: process.env.EMAIL_APP_PASSWORD || process.env.EMAIL_PASS || ''
+    }
+  });
+};
+
+const getEmailSender = () => {
+  return `"Catatan Keuangan KHB" <${process.env.EMAIL_USER || 'admin.keuangankhb@gmail.com'}>`;
+};
+
+// Setup MySQL Connection Pool
 // Setup MySQL Connection Pool
 let dbPool: mysql.Pool | null = null;
 if (process.env.DB_HOST && process.env.DB_USER && process.env.DB_NAME) {
   try {
     dbPool = mysql.createPool({
       host: process.env.DB_HOST,
+      port: Number(process.env.DB_PORT) || 3306, // <-- WAJIB ADA: Untuk membaca port Aiven
       user: process.env.DB_USER,
       password: process.env.DB_PASSWORD || "",
       database: process.env.DB_NAME,
+      ssl: { rejectUnauthorized: false },        // <-- WAJIB ADA: Aiven menolak koneksi tanpa SSL
       waitForConnections: true,
       connectionLimit: 10,
       queueLimit: 0
@@ -166,7 +183,7 @@ async function startServer() {
 
         // Cek apakah 2FA aktif
         const [twoFaRows]: any = await dbPool.execute('SELECT * FROM two_factor_auth WHERE user_id = ? AND enabled = true', [user.id]);
-        
+
         if (twoFaRows.length > 0) {
           const twoFa = twoFaRows[0];
           const method = twoFa.method;
@@ -176,16 +193,10 @@ async function startServer() {
             const otp = Math.floor(100000 + Math.random() * 900000).toString();
 
             if (method === 'email') {
-              const transporter = nodemailer.createTransport({
-                service: 'gmail',
-                auth: {
-                  user: 'admin.keuangankhb@gmail.com',
-                  pass: process.env.EMAIL_APP_PASSWORD || ''
-                }
-              });
+              const transporter = getEmailTransporter();
 
               await transporter.sendMail({
-                from: '"Catatan Keuangan KHB" <admin.keuangankhb@gmail.com>',
+                from: getEmailSender(),
                 to: user.email,
                 subject: 'Kode OTP Login 2FA - Catatan Keuangan KHB',
                 html: `
@@ -429,16 +440,10 @@ async function startServer() {
       const otp = Math.floor(100000 + Math.random() * 900000).toString();
 
       if (twoFa.method === 'email') {
-        const transporter = nodemailer.createTransport({
-          service: 'gmail',
-          auth: {
-            user: 'admin.keuangankhb@gmail.com',
-            pass: process.env.EMAIL_APP_PASSWORD || ''
-          }
-        });
+        const transporter = getEmailTransporter();
 
         await transporter.sendMail({
-          from: '"Catatan Keuangan KHB" <admin.keuangankhb@gmail.com>',
+          from: getEmailSender(),
           to: user.email,
           subject: 'Kode OTP Baru 2FA - Catatan Keuangan KHB',
           html: `
@@ -515,8 +520,8 @@ async function startServer() {
 
     const isExactFake = fakeUsernames.includes(username);
     const containsFake = fakeSubstrings.some(sub => username.includes(sub));
-    const isTestOrCobaPattern = 
-      /^(test|coba)/i.test(username) || 
+    const isTestOrCobaPattern =
+      /^(test|coba)/i.test(username) ||
       /(test|coba)$/i.test(username) ||
       /(test|coba)[-_.\d]/i.test(username) ||
       /[-_.\d](test|coba)/i.test(username);
@@ -712,17 +717,11 @@ async function startServer() {
         const user = rows[0];
         const resetToken = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, { expiresIn: '15m' });
 
-        const transporter = nodemailer.createTransport({
-          service: 'gmail',
-          auth: {
-            user: 'admin.keuangankhb@gmail.com',
-            pass: process.env.EMAIL_APP_PASSWORD || ''
-          }
-        });
+        const transporter = getEmailTransporter();
 
         const resetLink = `http://localhost:3000/reset-password?token=${resetToken}`;
         const mailOptions = {
-          from: '"Catatan Keuangan KHB" <admin.keuangankhb@gmail.com>',
+          from: getEmailSender(),
           to: email,
           subject: 'Reset Kata Sandi Anda - Catatan Keuangan KHB',
           html: `
@@ -891,16 +890,10 @@ async function startServer() {
         const otp = Math.floor(100000 + Math.random() * 900000).toString();
 
         if (method === 'email') {
-          const transporter = nodemailer.createTransport({
-            service: 'gmail',
-            auth: {
-              user: 'admin.keuangankhb@gmail.com',
-              pass: process.env.EMAIL_APP_PASSWORD || ''
-            }
-          });
+          const transporter = getEmailTransporter();
 
           await transporter.sendMail({
-            from: '"Catatan Keuangan KHB" <admin.keuangankhb@gmail.com>',
+            from: getEmailSender(),
             to: req.user.email,
             subject: 'Kode Verifikasi 2FA - Catatan Keuangan KHB',
             html: `
@@ -1171,13 +1164,7 @@ async function startServer() {
 
       if (rows.length === 0) return res.status(404).json({ error: "Tidak ada data transaksi" });
 
-      const transporter = nodemailer.createTransport({
-        service: 'gmail',
-        auth: {
-          user: 'admin.keuangankhb@gmail.com',
-          pass: process.env.EMAIL_APP_PASSWORD || ''
-        }
-      });
+      const transporter = getEmailTransporter();
 
       let attachmentContent: any;
 
@@ -1288,7 +1275,7 @@ async function startServer() {
             if (currentY + rowHeight > pageHeightLimit) {
               doc.addPage();
               currentY = 40;
-              
+
               // Redraw Table Header on new page
               doc.roundedRect(40, currentY, 532, 22, 4).fill('#f4f6f0');
               doc.fillColor('#1b4332').fontSize(9).font('Helvetica-Bold');
@@ -1326,10 +1313,10 @@ async function startServer() {
             doc.text(formattedDate, 75, currentY + 6, { width: 65 });
             doc.text(r.category || '-', 145, currentY + 6, { width: 80, ellipsis: true });
             doc.text(displayType, 230, currentY + 6, { width: 70 });
-            
+
             doc.fillColor(amountColor).font('Helvetica-Bold');
             doc.text(formattedAmount, 305, currentY + 6, { width: 85, align: 'right' });
-            
+
             doc.fillColor('#111827').font('Helvetica');
             doc.text(r.description || '-', 405, currentY + 6, { width: 155, ellipsis: true });
 
@@ -1340,7 +1327,7 @@ async function startServer() {
           const range = doc.bufferedPageRange();
           for (let j = 0; j < range.count; j++) {
             doc.switchToPage(j);
-            
+
             // Subtle horizontal line above footer
             doc.rect(40, 740, 532, 0.5).fill('#e5e7eb');
 
@@ -1370,7 +1357,7 @@ async function startServer() {
 
       // Kirim Email dengan attachment yang sesuai
       await transporter.sendMail({
-        from: '"Catatan Keuangan KHB" <admin.keuangankhb@gmail.com>',
+        from: getEmailSender(),
         to: email,
         subject: `Laporan Transaksi - ${format.toUpperCase()}`,
         text: "Halo, Terlampir adalah laporan rekapan transaksi keuangan Anda sesuai dengan format yang diminta.",
