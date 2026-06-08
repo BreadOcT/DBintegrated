@@ -738,7 +738,8 @@ if (process.env.DB_HOST && process.env.DB_USER && process.env.DB_NAME) {
 
         const transporter = getEmailTransporter();
 
-        const resetLink = `http://localhost:3000/reset-password?token=${resetToken}`;
+        const appUrl = process.env.APP_URL || "https://keuangan-khb.com";
+        const resetLink = `${appUrl}/reset-password?token=${resetToken}`;
         const mailOptions = {
           from: getEmailSender(),
           to: email,

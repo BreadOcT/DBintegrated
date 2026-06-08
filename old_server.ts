@@ -205,7 +205,8 @@ async function startServer() {
           },
         });
 
-        const resetLink = `http://localhost:3000/reset-password?token=${resetToken}`;
+        const appUrl = process.env.APP_URL || "https://keuangan-khb.com";
+        const resetLink = `${appUrl}/reset-password?token=${resetToken}`;
         
         const mailOptions = {
           from: '"Catatan Keuangan KHB" <admin.keuangankhb@gmail.com>',
