@@ -1,6 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from './useAuth';
 
+export interface NotificationAction {
+  label: string;
+  tab: string;
+  payload?: any;
+}
+
 export interface Notification {
   id: number;
   title: string;
@@ -8,6 +14,7 @@ export interface Notification {
   time: string;
   type: 'success' | 'warning' | 'info';
   read: boolean;
+  action?: NotificationAction;
 }
 
 export function useNotifications() {
@@ -76,6 +83,20 @@ export function useNotifications() {
     setNotifications(prev => prev.map(n => ({ ...n, read: true })));
   };
 
+  const deleteNotification = (id: number) => {
+    const deleted = notifications.find(n => n.id === id);
+    setNotifications(prev => prev.filter(n => n.id !== id));
+    return deleted;
+  };
+
+  const restoreNotification = (notif: Notification) => {
+    setNotifications(prev => {
+      const exists = prev.some(n => n.id === notif.id);
+      if (exists) return prev;
+      return [...prev, notif].sort((a, b) => b.id - a.id);
+    });
+  };
+
   const unreadCount = notifications.filter(n => !n.read).length;
 
   return {
@@ -84,5 +105,7 @@ export function useNotifications() {
     markAsRead,
     markAllAsRead,
     unreadCount,
+    deleteNotification,
+    restoreNotification,
   };
 }

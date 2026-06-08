@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'motion/react';
-import { Bell, CheckCircle2, AlertTriangle, Info, Clock, Check } from 'lucide-react';
+import { Bell, CheckCircle2, AlertTriangle, Info, Clock, Check, ArrowRight, Trash2 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { Notification } from '../hooks/useNotifications';
 import { useSettings } from '../hooks/useSettings';
@@ -10,9 +10,17 @@ interface NotificationsProps {
   unreadCount?: number;
   onMarkAsRead: (id: number) => void;
   onMarkAllAsRead: () => void;
+  onActionClick?: (action: any, id: number) => void;
+  onDeleteNotification: (id: number) => void;
 }
 
-export function Notifications({ notifications, onMarkAsRead, onMarkAllAsRead }: NotificationsProps) {
+export function Notifications({ 
+  notifications, 
+  onMarkAsRead, 
+  onMarkAllAsRead, 
+  onActionClick,
+  onDeleteNotification 
+}: NotificationsProps) {
   const { t, language } = useSettings();
   const unreadCount = notifications.filter(n => !n.read).length;
 
@@ -85,56 +93,108 @@ export function Notifications({ notifications, onMarkAsRead, onMarkAllAsRead }: 
  
       <div className="bg-bg-base border border-sand rounded-3xl overflow-hidden shadow-sm">
         {notifications.length > 0 ? (
-          <div className="divide-y divide-sand/50">
+          <div className="flex flex-col">
             {notifications.map((notification, index) => {
               const Icon = notification.type === 'success' ? CheckCircle2 :
                            notification.type === 'warning' ? AlertTriangle : Info;
                            
               return (
-                <motion.div 
-                   initial={{ opacity: 0, y: 10 }}
-                   animate={{ opacity: 1, y: 0 }}
-                   transition={{ delay: index * 0.05 }}
-                   key={notification.id}
-                   onClick={() => onMarkAsRead(notification.id)}
-                   className={cn(
-                     "p-5 md:p-6 transition-all cursor-pointer relative group",
-                     notification.read 
-                       ? "hover:bg-sand/20" 
-                       : "bg-clay/5 hover:bg-clay/10"
-                   )}
+                <div 
+                  key={notification.id} 
+                  className="relative overflow-hidden border-b border-sand/50 last:border-b-0 bg-red-500/10 dark:bg-red-500/5 select-none"
                 >
-                  <div className="flex gap-4 items-start">
-                    <div className={cn(
-                      "w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 shadow-sm transition-transform group-hover:scale-110",
-                      notification.type === 'success' ? "bg-green-500/10 text-green-500" :
-                      notification.type === 'warning' ? "bg-orange-500/10 text-orange-500" :
-                      "bg-blue-500/10 text-blue-500"
-                    )}>
-                      <Icon className="w-5 h-5" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between gap-2 mb-1">
-                        <h4 className={cn(
-                          "font-bold text-sm md:text-base pr-4",
-                          notification.read ? "text-text-main" : "text-clay"
-                        )}>
-                          {translateNotificationTitle(notification.title)}
-                        </h4>
-                        {!notification.read && (
-                          <div className="w-2.5 h-2.5 rounded-full bg-red-500 shrink-0"></div>
-                        )}
-                      </div>
-                      <p className="text-text-muted text-sm leading-relaxed mb-3">
-                        {translateNotificationMessage(notification.message)}
-                      </p>
-                      <div className="flex items-center gap-1.5 text-xs text-text-muted/70 font-medium">
-                        <Clock className="w-3.5 h-3.5" />
-                        {translateNotificationTime(notification.time)}
-                      </div>
+                  {/* Drag-to-delete reveal background */}
+                  <div className="absolute inset-y-0 right-0 w-24 flex items-center justify-center text-red-500 pr-4 pointer-events-none">
+                    <div className="flex flex-col items-center gap-1 text-red-500 dark:text-red-400">
+                      <Trash2 className="w-5 h-5 animate-pulse" />
+                      <span className="text-[10px] font-black uppercase tracking-widest">
+                        {language === 'en' ? 'Delete' : 'Hapus'}
+                      </span>
                     </div>
                   </div>
-                </motion.div>
+
+                  {/* Foreground Card */}
+                  <motion.div 
+                     drag="x"
+                     dragDirectionLock
+                     dragConstraints={{ left: -100, right: 0 }}
+                     dragElastic={{ left: 0.15, right: 0.05 }}
+                     onDragEnd={(event, info) => {
+                       if (info.offset.x < -60) {
+                         onDeleteNotification(notification.id);
+                       }
+                     }}
+                     style={{ touchAction: 'pan-y' }}
+                     initial={{ opacity: 0, y: 10 }}
+                     animate={{ opacity: 1, y: 0 }}
+                     transition={{ delay: index * 0.05 }}
+                     onClick={() => onMarkAsRead(notification.id)}
+                     className={cn(
+                       "p-5 md:p-6 transition-all cursor-pointer relative group bg-bg-card select-none",
+                       notification.read 
+                         ? "hover:bg-sand/10" 
+                         : "bg-clay/5 hover:bg-clay/10"
+                     )}
+                  >
+                    <div className="flex gap-4 items-start">
+                      <div className={cn(
+                        "w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 shadow-sm transition-transform group-hover:scale-110",
+                        notification.type === 'success' ? "bg-green-500/10 text-green-500" :
+                        notification.type === 'warning' ? "bg-orange-500/10 text-orange-500" :
+                        "bg-blue-500/10 text-blue-500"
+                      )}>
+                        <Icon className="w-5 h-5" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-2 mb-1">
+                          <h4 className={cn(
+                            "font-bold text-sm md:text-base pr-4",
+                            notification.read ? "text-text-main" : "text-clay"
+                          )}>
+                            {translateNotificationTitle(notification.title)}
+                          </h4>
+                          <div className="flex items-center gap-2 shrink-0">
+                            {!notification.read && (
+                              <div className="w-2.5 h-2.5 rounded-full bg-red-500"></div>
+                            )}
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onDeleteNotification(notification.id);
+                              }}
+                              className="p-1.5 rounded-xl text-text-muted hover:text-red-500 hover:bg-red-500/10 active:scale-90 transition-all sm:opacity-0 sm:group-hover:opacity-100 focus:opacity-100"
+                              title={language === 'en' ? "Delete" : "Hapus"}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+                        <p className="text-text-muted text-sm leading-relaxed mb-3">
+                          {translateNotificationMessage(notification.message)}
+                        </p>
+                        {notification.action && onActionClick && (
+                          <div className="mb-3">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onMarkAsRead(notification.id);
+                                onActionClick(notification.action, notification.id);
+                              }}
+                              className="inline-flex items-center gap-1.5 bg-clay/10 text-clay hover:bg-clay hover:text-white px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all active:scale-95 shadow-sm border border-clay/20"
+                            >
+                              {notification.action.label}
+                              <ArrowRight className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        )}
+                        <div className="flex items-center gap-1.5 text-xs text-text-muted/70 font-medium">
+                          <Clock className="w-3.5 h-3.5" />
+                          {translateNotificationTime(notification.time)}
+                        </div>
+                      </div>
+                    </div>
+                  </motion.div>
+                </div>
               );
             })}
           </div>

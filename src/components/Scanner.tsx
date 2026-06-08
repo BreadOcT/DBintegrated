@@ -1,17 +1,18 @@
 import React, { useRef, useState, useCallback } from "react";
 import Webcam from "react-webcam";
 import { Camera, Image as ImageIcon, Loader2 } from "lucide-react";
-import { Button } from "./ui/Button";
-import { parseReceiptWithAI } from "../lib/ai";
 import { Transaction } from "../types";
 import { useSettings } from "../hooks/useSettings";
 
 interface ScannerProps {
-  onScanSuccess: (data: Partial<Transaction>) => void;
-  addNotification: (notif: { title: string; message: string; type: 'success' | 'warning' | 'info' }) => void;
+  isScanning: boolean;
+  scanProgress: number;
+  scanStatusText: string;
+  scanImage: string | null;
+  onStartScan: (base64Str: string) => void;
 }
 
-function mockParseReceipt(rawText: string): Partial<Transaction> {
+export function mockParseReceipt(rawText: string): Partial<Transaction> {
   const lines = rawText.split('\n');
   let storeName = "Toko Kelontong Berkah";
   let totalAmount = 0;
@@ -77,192 +78,26 @@ function mockParseReceipt(rawText: string): Partial<Transaction> {
   };
 }
 
-export function Scanner({ onScanSuccess, addNotification }: ScannerProps) {
+export function Scanner({ 
+  isScanning, 
+  scanProgress, 
+  scanStatusText, 
+  scanImage, 
+  onStartScan 
+}: ScannerProps) {
   const { t, language } = useSettings();
   const webcamRef = useRef<Webcam>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [isProcessing, setIsProcessing] = useState(false);
   const [useCamera, setUseCamera] = useState(false);
-  const [currentScanImage, setCurrentScanImage] = useState<string | null>(null);
-  const [scanProgress, setScanProgress] = useState(0);
-  const [scanStatusText, setScanStatusText] = useState("");
-
-  const processImage = async (base64Str: string, mimeType: string) => {
-    setIsProcessing(true);
-    setCurrentScanImage(base64Str);
-    setScanProgress(5);
-    setScanStatusText(language === 'en' ? 'Uploading image...' : 'Mengunggah gambar...');
-
-    addNotification({
-      title: t('scanner.readingReceipt'),
-      message: t('scanner.readingReceiptProgress'),
-      type: "info"
-    });
-
-    const progressInterval = setInterval(() => {
-      setScanProgress((prev) => {
-        if (prev >= 90) return prev;
-        const inc = prev < 40 ? 6 : (prev < 75 ? 3 : 1);
-        if (prev + inc >= 80) {
-          setScanStatusText(language === 'en' ? 'AI is parsing receipt details...' : 'AI sedang menganalisis detail struk...');
-        } else if (prev + inc >= 50) {
-          setScanStatusText(language === 'en' ? 'Extracting text with PaddleOCR...' : 'Mengekstrak teks dengan PaddleOCR...');
-        } else if (prev + inc >= 25) {
-          setScanStatusText(language === 'en' ? 'Analyzing receipt structure...' : 'Menganalisis struktur nota...');
-        }
-        return prev + inc;
-      });
-    }, 250);
-    
-    try {
-      const base64Data = base64Str.split(",")[1] || base64Str;
-      
-      // 1. KIRIM GAMBAR KE SERVER PADDLEOCR DENGAN FALLBACK CERDAS
-      let rawText = "";
-      try {
-        const ocrServerUrl = import.meta.env.VITE_OCR_SERVER_URL || "https://ocrservice.kolab.top/scan-base64/";
-        const ocrResponse = await fetch(ocrServerUrl, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ image: base64Data })
-        });
-        
-        if (!ocrResponse.ok) throw new Error("Server OCR mati atau error");
-        const ocrData = await ocrResponse.json();
-        rawText = ocrData.data.join("\n");
-      } catch (ocrErr) {
-        console.warn("Local OCR Server is offline. Falling back to intelligent simulation.", ocrErr);
-        addNotification({
-          title: language === 'en' ? 'Local OCR Offline' : 'OCR Lokal Offline',
-          message: language === 'en' 
-            ? 'OCR Server is offline. Using smart simulation to let you test scanning features!' 
-            : 'Server OCR offline. Mengaktifkan simulasi pintar agar Anda tetap dapat menguji fitur pemindaian!',
-          type: "warning"
-        });
-        
-        // Simulasikan teks struk belanjaan riil
-        rawText = "KHB MART BANDUNG\n" +
-          "JL. CIPAGANTI NO. 12\n" +
-          "====================================\n" +
-          "Beras Cianjur 5kg    1x  75.000\n" +
-          "Minyak Goreng 2L     1x  38.000\n" +
-          "Gula Pasir 1kg       2x  32.000\n" +
-          "====================================\n" +
-          "TOTAL                    145.000\n" +
-          "TUNAI                    150.000\n" +
-          "KEMBALI                    5.000\n" +
-          "TERIMA KASIH ATAS KUNJUNGAN ANDA";
-      }
-      
-      // 2. LOGIKA VALIDASI STRUK / NOTA (CEK SELFIE ATAU GAMBAR ASAL)
-      const cleanText = rawText.trim();
-      const hasNumbers = /\d+/.test(cleanText);
-      const receiptKeywords = /total|subtotal|tunai|cash|kembali|change|harga|price|qty|item|jumlah|bayar|toko|mart|jl\.|jl |no\.|rp|no /i;
-      const hasReceiptKeywords = receiptKeywords.test(cleanText);
-      const linesCount = cleanText.split('\n').filter(l => l.trim().length > 0).length;
-
-      if (cleanText.length === 0 || !hasNumbers || (linesCount < 3 && !hasReceiptKeywords)) {
-        throw new Error("INVALID_RECEIPT_IMAGE");
-      }
-
-      console.log("====== HASIL BACAAN OCR KEUANGAN ======");
-      console.log(rawText);
-      console.log("=======================================");
-      
-      const snippet = rawText.length > 40 ? rawText.substring(0, 40) + "..." : rawText;
-      addNotification({
-        title: t('scanner.aiAnalyzing'),
-        message: t('scanner.aiAnalyzingProgress').replace("{snippet}", snippet),
-        type: "info"
-      });
-
-      // Jeda dramatis untuk animasi analisis AI
-      await new Promise((resolve) => setTimeout(resolve, 1500));
-
-      let parsedResult: any = null;
-      const apiKey = import.meta.env.VITE_DEEPSEEK_API_KEY;
-
-      if (apiKey) {
-        try {
-          const aiResult = await parseReceiptWithAI(rawText);
-          parsedResult = {
-            type: "expense",
-            amount: aiResult.totalAmount || aiResult.amount || 0,
-            date: aiResult.date || new Date().toISOString().split("T")[0],
-            storeName: aiResult.storeName || "Toko Tidak Dikenal",
-            description: `Pembelian di ${aiResult.storeName || "Toko"} (AI Scan)`,
-            items: aiResult.items || [],
-            rawText: rawText
-          };
-        } catch (aiErr) {
-          console.warn("Real AI failed, falling back to mock parser", aiErr);
-        }
-      }
-
-      if (!parsedResult) {
-        parsedResult = mockParseReceipt(rawText);
-      }
-
-      const formattedAmount = new Intl.NumberFormat("id-ID", {
-        style: "currency",
-        currency: "IDR",
-        minimumFractionDigits: 0,
-        maximumFractionDigits: 0,
-      }).format(parsedResult.amount);
-
-      addNotification({
-        title: t('scanner.analyzedTitle'),
-        message: t('scanner.analyzedMsg')
-          .replace("{formattedAmount}", formattedAmount)
-          .replace("{storeName}", parsedResult.storeName || ""),
-        type: "success"
-      });
-      
-      clearInterval(progressInterval);
-      setScanProgress(100);
-      setScanStatusText(language === 'en' ? 'Complete!' : 'Selesai!');
-      await new Promise((resolve) => setTimeout(resolve, 400));
-      
-      onScanSuccess(parsedResult);
-    } catch (error: any) {
-      console.error(error);
-      clearInterval(progressInterval);
-      
-      if (error.message === "INVALID_RECEIPT_IMAGE") {
-        addNotification({
-          title: language === 'en' ? 'Scan Cancelled' : 'Scan Dibatalkan',
-          message: language === 'en'
-            ? 'The image is not recognized as a shopping receipt. Please upload a clear photo of a receipt.'
-            : 'Gambar tidak dikenali sebagai struk belanja. Silakan unggah foto nota yang jelas.',
-          type: "warning"
-        });
-        alert(
-          language === 'en'
-            ? 'Receipt scan cancelled: Image is not a valid receipt. Please make sure the photo contains readable text and prices.'
-            : 'Scan struk dibatalkan: Gambar tidak sesuai. Pastikan foto Anda adalah struk belanja yang memiliki teks dan nominal angka yang terbaca jelas.'
-        );
-      } else {
-        addNotification({
-          title: t('scanner.scanFailed'),
-          message: t('scanner.scanFailedMsg'),
-          type: "warning"
-        });
-        alert(t('scanner.ocrServerError'));
-      }
-    } finally {
-      clearInterval(progressInterval);
-      setIsProcessing(false);
-    }
-  };
 
   const capture = useCallback(() => {
     if (webcamRef.current) {
       const imageSrc = webcamRef.current.getScreenshot();
       if (imageSrc) {
-        processImage(imageSrc, "image/jpeg");
+        onStartScan(imageSrc);
       }
     }
-  }, [webcamRef]);
+  }, [webcamRef, onStartScan]);
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -272,13 +107,13 @@ export function Scanner({ onScanSuccess, addNotification }: ScannerProps) {
     reader.onload = (event) => {
       const dataUrl = event.target?.result as string;
       if (dataUrl) {
-        processImage(dataUrl, file.type);
+        onStartScan(dataUrl);
       }
     };
     reader.readAsDataURL(file);
   };
 
-  if (isProcessing) {
+  if (isScanning) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[450px] glass-card p-8 md:p-10 max-w-2xl mx-auto border-t-4 border-t-clay animate-in fade-in duration-300">
         <h3 className="text-2xl font-black text-text-main tracking-tight">{t('scanner.readingReceiptHeader')}</h3>
@@ -286,10 +121,18 @@ export function Scanner({ onScanSuccess, addNotification }: ScannerProps) {
           {t('scanner.readingReceiptDesc')}
         </p>
 
+        {/* Informative text for background multitasking */}
+        <p className="text-sm font-semibold text-clay/90 mt-3 text-center animate-pulse">
+          {language === 'en' ? 'You can close this page safely.' : 'Anda dapat menutup halaman ini.'}
+        </p>
+        <p className="text-xs text-text-muted mt-1 text-center font-medium">
+          {language === 'en' ? 'You will be notified when the scan is complete.' : 'Anda akan ternotifikasi kalau scan selesai.'}
+        </p>
+
         <div className="relative w-64 h-80 rounded-2xl overflow-hidden border-2 border-sand shadow-inner bg-black/5 dark:bg-black/20 my-6 flex items-center justify-center group">
-          {currentScanImage ? (
+          {scanImage ? (
             <img 
-              src={currentScanImage} 
+              src={scanImage} 
               className="w-full h-full object-cover opacity-75 dark:opacity-60 transition-opacity" 
               alt="Scanning receipt" 
             />
@@ -350,7 +193,7 @@ export function Scanner({ onScanSuccess, addNotification }: ScannerProps) {
   }
 
   return (
-    <div className="glass-card overflow-hidden max-w-2xl mx-auto shadow-sm pb-10">
+    <div className="glass-card overflow-hidden max-w-2xl mx-auto shadow-sm pb-10 animate-in fade-in duration-300">
       <div className="p-8 pb-6 border-b border-sand/50 bg-gradient-to-b from-white to-transparent dark:from-white/5">
         <div className="inline-flex items-center gap-2 px-3 py-1 bg-clay/10 text-clay rounded-full text-xs font-bold mb-3">
           <span className="w-2.5 h-2.5 rounded-full bg-clay animate-pulse"></span>

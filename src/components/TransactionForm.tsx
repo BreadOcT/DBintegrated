@@ -336,28 +336,16 @@ export function TransactionForm({
               </div>
             </div>
             
-            <div className="flex items-center gap-2">
-              {items.length > 0 && (
-                <span className="text-xs font-bold text-[#68B943] bg-[#68B943]/10 px-2.5 py-1 rounded-full">
-                  {items.length} {t('trxForm.item')}
-                </span>
-              )}
-              {!(isAddingItem || editingItemIdx !== null) && (
-                <button
-                  type="button"
-                  data-ignore-click-outside="true"
-                  onClick={() => setIsAddingItem(true)}
-                  className="flex items-center gap-1 border border-sand bg-white dark:bg-bg-card text-text-main font-bold text-xs py-1.5 px-4 rounded-full hover:bg-sand/30 shadow-sm active:scale-95 transition-all"
-                >
-                  <Plus className="w-3.5 h-3.5" /> {t('trxForm.add')}
-                </button>
-              )}
-            </div>
+            {items.length > 0 && (
+              <span className="text-xs font-bold text-[#68B943] bg-[#68B943]/10 px-2.5 py-1 rounded-full">
+                {items.length} {t('trxForm.item')}
+              </span>
+            )}
           </div>
 
           {/* List of current items */}
           {items.length > 0 && (
-            <div className="space-y-2 max-h-[250px] overflow-y-auto overflow-x-hidden pr-1">
+            <div className="space-y-2 pr-1">
               {items.map((item, idx) => (
                 <div key={idx} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-bg-card p-4 border border-sand/50 rounded-2xl shadow-sm text-sm">
                   <div className="flex items-center gap-3 flex-1 min-w-0">
@@ -465,6 +453,18 @@ export function TransactionForm({
                 </button>
               </div>
             </motion.div>
+          )}
+
+          {/* + Tambah button at the bottom of the cards list */}
+          {!(isAddingItem || editingItemIdx !== null) && (
+            <button
+              type="button"
+              data-ignore-click-outside="true"
+              onClick={() => setIsAddingItem(true)}
+              className="flex items-center justify-center gap-1.5 border border-dashed border-[#68B943] bg-white dark:bg-bg-card text-text-main font-bold text-sm py-2.5 px-6 rounded-2xl hover:bg-[#68B943]/5 hover:border-[#68B943] w-full shadow-sm active:scale-95 transition-all mt-2"
+            >
+              <Plus className="w-4 h-4 text-[#68B943]" /> {t('trxForm.add')}
+            </button>
           )}
         </div>
 

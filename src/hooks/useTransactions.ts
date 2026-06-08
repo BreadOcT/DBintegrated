@@ -49,6 +49,7 @@ export function useTransactions() {
         const { id } = await res.json();
         const newTransaction = { ...t, id };
         setTransactions((prev) => [newTransaction, ...prev]);
+        return id;
       } else {
         throw new Error("Failed to add transaction");
       }
