@@ -98,7 +98,8 @@ export function Scanner({ onScanSuccess, addNotification }: ScannerProps) {
       // 1. KIRIM GAMBAR KE SERVER PADDLEOCR DENGAN FALLBACK CERDAS
       let rawText = "";
       try {
-        const ocrResponse = await fetch("http://localhost:8000/scan-base64/", {
+        const ocrServerUrl = "https://ocrservice.kolab.top/scan-base64/";
+        const ocrResponse = await fetch(ocrServerUrl, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ image: base64Data })

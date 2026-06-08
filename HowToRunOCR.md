@@ -1,8 +1,4 @@
-"""# Panduan Langkah Menjalankan Aplikasi (Setup & Run Guide)
 
-Panduan ringkas ini hanya berisi instruksi setup terminal, unduhan yang diperlukan, dan tata cara menjalankan seluruh sistem (Python OCR, Database XAMPP, dan Node.js/Vite) tanpa menyertakan source code.
-
----
 
 ## 1. Unduhan & Komponen yang Diperlukan
 
@@ -31,10 +27,7 @@ Buka terminal **PowerShell/CMD baru**, arahkan ke direktori proyek Anda (`C:\\pr
 
 ### Langkah A: Instalasi Library Pendukung (Golden Match Version)
 
-```
 
-```text
-File Cara_Run_Sistem.md berhasil dibuat.
 
 ```bash
 # 1. Upgrade pip ke versi terbaru
